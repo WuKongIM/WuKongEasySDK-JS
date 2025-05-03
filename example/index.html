@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WuKongIM Test Example</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <h1>WuKongIM Test Example</h1>
+
+    <div class="connection-controls">
+        <label for="server-url">Server URL:</label>
+        <input type="text" id="server-url" value="ws://localhost:5200">
+
+        <label for="user-id">User ID:</label>
+        <input type="text" id="user-id" value="testUser">
+
+        <label for="token">Token:</label>
+        <input type="text" id="token" value="testToken">
+
+        <button id="connect-btn">Connect</button>
+        <button id="disconnect-btn" disabled>Disconnect</button>
+    </div>
+
+    <div class="message-controls" style="display: none;">
+        <label for="target-id">Target User ID:</label>
+        <input type="text" id="target-id" value="friendUser">
+
+        <label for="message-payload">Message (JSON):</label>
+        <textarea id="message-payload">{"type":1, "content":"Hello!"}</textarea>
+
+        <button id="send-btn">Send Message</button>
+    </div>
+
+    <h2>Logs <button id="clear-log-btn" style="margin-left: 10px; font-size: 0.8em; padding: 3px 8px;">Clear Log</button></h2>
+    <pre id="log-area"></pre>
+
+    <script type="module" src="app.js"></script>
+</body>
+</html> 

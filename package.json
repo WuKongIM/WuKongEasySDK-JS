@@ -1,0 +1,28 @@
+{
+  "name": "easyjssdk",
+  "version": "1.0.0",
+  "description": "",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^20.14.10",
+    "@types/uuid": "^10.0.0",
+    "@types/ws": "^8.18.1",
+    "typescript": "^5.5.3"
+  },
+  "files": [
+    "dist/**/*"
+  ],
+  "dependencies": {
+    "uuid": "^11.1.0",
+    "ws": "^8.18.2"
+  }
+}
