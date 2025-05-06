@@ -1,5 +1,7 @@
 # EasyJSSDK
 
+[中文 README](README_zh.md)
+
 A simple and easy-to-use communication SDK for WuKongIM, based on its JSON-RPC protocol.
 
 ## Installation
