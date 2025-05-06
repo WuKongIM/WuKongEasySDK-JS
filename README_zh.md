@@ -24,49 +24,20 @@ const im = WKIM.init("ws://your-wukongim-server.com:5200", {
     // deviceFlag: 2 // 可选的设备标识 (1:APP, 2:WEB, 默认为 2)
 });
 
-// 2. 设置事件监听器
-im.on(WKIMEvent.Connect, (connectResult) => {
-    console.log("IM 已连接!", connectResult);
-    // 连接成功，现在可以发送消息了
-});
-
-im.on(WKIMEvent.Disconnect, (disconnectInfo) => {
-    console.log("IM 已断开连接.", disconnectInfo);
-    // 处理断开连接（例如：显示提示信息，尝试重连）
-});
-
+// 2. 收消息
 im.on(WKIMEvent.Message, (message) => {
     console.log("收到消息:", message);
     // 处理收到的消息 (message.payload, message.fromUid 等)
 });
-
-im.on(WKIMEvent.Error, (error) => {
-    console.error("IM 发生错误:", error);
-    // 处理错误
-});
+// 更多事件，查看对应文档
 
 // 3. 连接到服务器
-im.connect()
-    .then(() => {
-        console.log("连接过程已启动，等待 Connect 事件...");
+await im.connect()
 
-        // 示例：连接成功后发送一条消息
-        const targetUserId = "friend_user_id"; // 目标用户 ID
-        const messagePayload = { type: 1, content: "来自 EasyJSSDK 的问候!" }; // 你的自定义消息负载
-
-        return im.send(targetUserId, WKIMChannelType.Person, messagePayload);
-    })
-    .then((sendAck) => {
-        console.log("消息发送成功, Ack:", sendAck);
-        // sendAck 包含 { messageId, messageSeq }
-    })
-    .catch((err) => {
-        console.error("连接或初始发送失败:", err);
-    });
-
-// 4. 断开连接 (在需要时调用，例如用户登出)
-// im.disconnect();
-
+// 4. 示例：连接成功后发送一条消息
+const targetUserId = "friend_user_id"; // 目标用户 ID
+const messagePayload = { type: 1, content: "来自 EasyJSSDK 的问候!" }; // 你的自定义消息负载
+return im.send(targetUserId, WKIMChannelType.Person, messagePayload);
 ```
 
 ## 开发

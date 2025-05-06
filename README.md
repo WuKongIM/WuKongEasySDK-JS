@@ -13,59 +13,33 @@ npm install easyjssdk
 ## Usage
 
 ```typescript
-// Import necessary components
+// ... existing code ...
 import { WKIM, WKIMChannelType, WKIMEvent } from 'easyjssdk';
 
 // 1. Initialization
 const im = WKIM.init("ws://your-wukongim-server.com:5200", {
-    uid: "your_user_id",
-    token: "your_auth_token"
-    // deviceId: "optional_device_id", // Optional
-    // deviceFlag: 2 // Optional (1:APP, 2:WEB, default is 2)
+    uid: "your_user_id",        // Your user ID
+    token: "your_auth_token"    // Your authentication token
+    // deviceId: "optional_device_id", // Optional device ID
+    // deviceFlag: 2 // Optional device flag (1:APP, 2:WEB, default is 2)
 });
 
-// 2. Setup Event Listeners
-im.on(WKIMEvent.Connect, (connectResult) => {
-    console.log("IM Connected!", connectResult);
-    // Connection successful, you can now send messages
-});
-
-im.on(WKIMEvent.Disconnect, (disconnectInfo) => {
-    console.log("IM Disconnected.", disconnectInfo);
-    // Handle disconnection (e.g., show message, attempt reconnect)
-});
-
+// 2. Receive messages
 im.on(WKIMEvent.Message, (message) => {
-    console.log("Received Message:", message);
-    // Process incoming message (message.payload, message.fromUid, etc.)
+    console.log("Received message:", message);
+    // Process received message (message.payload, message.fromUid, etc.)
 });
-
-im.on(WKIMEvent.Error, (error) => {
-    console.error("IM Error:", error);
-    // Handle errors
-});
+// For more events, check the documentation
 
 // 3. Connect to the server
-im.connect()
-    .then(() => {
-        console.log("Connection process initiated. Waiting for Connect event...");
+await im.connect()
 
-        // Example: Send a message after successful connection initiation
-        const targetUserId = "friend_user_id";
-        const messagePayload = { type: 1, content: "Hello from EasyJSSDK!" }; // Your custom payload
-
-        return im.send(targetUserId, WKIMChannelType.Person, messagePayload);
-    })
-    .then((sendAck) => {
-        console.log("Message sent successfully, Ack:", sendAck);
-        // sendAck contains { messageId, messageSeq }
-    })
-    .catch((err) => {
-        console.error("Connection or initial send failed:", err);
-    });
-
-// 4. Disconnect (when needed, e.g., user logout)
-// im.disconnect();
+// 4. Example: Send a message after successful connection
+const targetUserId = "friend_user_id"; // Target user ID
+const messagePayload = { type: 1, content: "Hello from EasyJSSDK!" }; // Your custom message payload
+return im.send(targetUserId, WKIMChannelType.Person, messagePayload);
+```
+// ... existing code ...
 
 ```
 
