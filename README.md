@@ -40,9 +40,6 @@ const targetChannelID = "friend_user_id"; // Target user ID
 const messagePayload = { type: 1, content: "Hello from EasyJSSDK!" }; // Your custom message payload
 return im.send(targetChannelID, WKIMChannelType.Person, messagePayload);
 ```
-// ... existing code ...
-
-```
 
 ## Example:
 
