@@ -30,6 +30,7 @@ im.on(WKIMEvent.Message, (message) => {
     // Process received message (message.payload, message.fromUid, etc.)
 });
 // For more events, check the documentation
+https://github.com/WuKongIM/EasyJSSDK/blob/main/example/app.js#L132
 
 // 3. Connect to the server
 await im.connect()
