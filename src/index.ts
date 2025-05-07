@@ -119,7 +119,7 @@ export class WKIM {
     private ws: WebSocket | null = null;
     private url: string;
     private auth: AuthOptions;
-    private isConnected: boolean = false;
+    public isConnected: boolean = false;
     private connectionPromise: { resolve: (value: void | PromiseLike<void>) => void; reject: (reason?: any) => void; } | null = null;
     private pingInterval: NodeJS.Timeout | null = null;
     private pingTimeout: NodeJS.Timeout | null = null;
