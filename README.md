@@ -36,9 +36,9 @@ https://github.com/WuKongIM/EasyJSSDK/blob/main/example/app.js#L132
 await im.connect()
 
 // 4. Example: Send a message after successful connection
-const targetUserId = "friend_user_id"; // Target user ID
+const targetChannelID = "friend_user_id"; // Target user ID
 const messagePayload = { type: 1, content: "Hello from EasyJSSDK!" }; // Your custom message payload
-return im.send(targetUserId, WKIMChannelType.Person, messagePayload);
+return im.send(targetChannelID, WKIMChannelType.Person, messagePayload);
 ```
 // ... existing code ...
 

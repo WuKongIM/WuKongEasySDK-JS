@@ -23,9 +23,26 @@ if (typeof WebSocket !== 'undefined') {
  * Channel Type Enum based on WuKongIM protocol
  */
 export enum ChannelType {
+    /** Person channel */
     Person = 1,
+    /** Group channel */
     Group = 2,
-    // Add other channel types if needed
+    /** Customer Service channel (Consider using Visitors channel instead) */
+    CustomerService = 3,
+    /** Community channel */
+    Community = 4,
+    /** Community Topic channel */
+    CommunityTopic = 5,
+    /** Info channel (with concept of temporary subscribers) */
+    Info = 6,
+    /** Data channel */
+    Data = 7,
+    /** Temporary channel */
+    Temp = 8,
+    /** Live channel (does not save recent session data) */
+    Live = 9,
+    /** Visitors channel (replaces CustomerService for new implementations) */
+    Visitors = 10,
 }
 
 /**
@@ -235,7 +252,7 @@ export class WKIM {
      */
     public send(
         channelId: string,
-        channelType: ChannelType,
+        channelType: ChannelType | number,
         payload: object,
         options: {
             clientMsgNo?: string;
