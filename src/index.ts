@@ -83,7 +83,15 @@ interface SendResult {
     messageSeq: number;
 }
 
-interface RecvMessage {
+export interface Header {
+    noPersist?: boolean;
+    redDot?: boolean;
+    syncOnce?: boolean; 
+    dup?: boolean; 
+}
+
+export interface RecvMessage {
+    header: Header;
     messageId: string;
     messageSeq: number;
     timestamp: number;
@@ -256,10 +264,8 @@ export class WKIM {
         payload: object,
         options: {
             clientMsgNo?: string;
-            header?: any; // Define Header type based on protocol if needed
+            header?: Header; // Define Header type based on protocol if needed
             setting?: any; // Define SettingFlags type based on protocol if needed
-            msgKey?: string;
-            expire?: number;
             topic?: string;
         } = {}
     ): Promise<SendResult> {
@@ -270,13 +276,19 @@ export class WKIM {
              return Promise.reject(new Error("Payload must be a non-null object."));
         }
 
+        const header = options.header || {};
+        header.redDot = true
+
+
         const clientMsgNo = options.clientMsgNo || crypto.randomUUID();
         const params = {
             clientMsgNo: clientMsgNo,
             channelId: channelId,
             channelType: channelType,
             payload: payload,
-            ...options // Include other optional params
+            header: header,
+            topic: options.topic,
+            setting: options.setting,
         };
 
         return this.sendRequest<SendResult>('send', params);
@@ -453,7 +465,7 @@ export class WKIM {
                 const messageData = notification.params as RecvMessage;
                 this.emit(Event.Message, messageData);
                 // Automatically acknowledge receipt
-                this.sendRecvAck(messageData.messageId, messageData.messageSeq);
+                this.sendRecvAck(messageData.header, messageData.messageId, messageData.messageSeq);
                 break;
             case 'pong':
                  this.handlePong();
@@ -469,15 +481,12 @@ export class WKIM {
         }
     }
 
-    private sendRecvAck(messageId: string, messageSeq: number): void {
+    private sendRecvAck(header: Header, messageId: string, messageSeq: number): void {
         // Per protocol, recvack is a request, but usually doesn't need a response processed
         // Sending as a notification might be simpler if the server allows it,
         // but sticking to the doc: send as request, ignore response.
-        const params = { messageId, messageSeq };
-        this.sendRequest('recvack', params).catch(err => {
-            console.warn(`Failed to send recvack for msg ${messageId} (seq ${messageSeq}):`, err);
-            // Decide if retry is needed?
-        });
+        const params = { header,messageId, messageSeq };
+        this.sendNotification('recvack', params);
 
         // Alternative: Send as notification if server supports it (non-standard)
         // this.sendNotification('recvack', params);
