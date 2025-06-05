@@ -280,7 +280,7 @@ export class WKIM {
         header.redDot = true
 
 
-        const clientMsgNo = options.clientMsgNo || crypto.randomUUID();
+        const clientMsgNo = options.clientMsgNo || this.generateUUID(); // Generate a unique message ID if not provided
         const params = {
             clientMsgNo: clientMsgNo,
             channelId: channelId,
@@ -339,6 +339,13 @@ export class WKIM {
         }
     }
 
+    private generateUUID(): string {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+            const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
+    }
+
     private sendConnectRequest(): void {
         const params = {
             uid: this.auth.uid,
@@ -377,7 +384,7 @@ export class WKIM {
                 return reject(new Error("WebSocket is not open."));
             }
 
-            const requestId = crypto.randomUUID();
+            const requestId = this.generateUUID(); // Generate a unique request ID
             const request: JsonRpcRequest = {
                 method: method,
                 params: params,
