@@ -59,7 +59,8 @@ export enum Event {
     Error = 'error',
     /** Received acknowledgment for a sent message */
     SendAck = 'sendack',
-    // Add other events like 'reconnecting', 'status_change' if desired
+    /** The SDK is attempting to reconnect */
+    Reconnecting = 'reconnecting',
 }
 
 interface AuthOptions {
@@ -154,6 +155,13 @@ export class WKIM {
     private pendingRequests: Map<string, PendingRequest> = new Map();
     private eventListeners: Map<Event, EventHandler[]> = new Map();
 
+    // Reconnection properties
+    private reconnectAttempts: number = 0;
+    private maxReconnectAttempts: number = 5;
+    private initialReconnectDelay: number = 1000;
+    private isReconnecting: boolean = false;
+    private manualDisconnect: boolean = false;
+
     private constructor(url: string, auth: AuthOptions) {
         this.url = url;
         this.auth = auth;
@@ -194,6 +202,10 @@ export class WKIM {
                 }
                 return;
             }
+
+            // On a new connect call, reset manual disconnect flag
+            this.manualDisconnect = false;
+
             this.connectionPromise = { resolve, reject };
 
             try {
@@ -213,23 +225,24 @@ export class WKIM {
                     const errorMessage = event.message || (event.error ? event.error.message : 'WebSocket error');
                     console.error("WebSocket error:", errorMessage, event);
                     this.emit(Event.Error, event.error || new Error(errorMessage));
-                    this.handleDisconnect(false, `WebSocket error: ${errorMessage}`); // Don't try graceful close
-                     if (this.connectionPromise) {
-                        this.connectionPromise.reject(event.error || new Error(errorMessage));
-                        this.connectionPromise = null;
-                    }
-                     this.cleanupConnection();
+                    // The 'onclose' event will be fired next, which will handle cleanup and reconnection logic.
                 };
 
                 this.ws.onclose = (event) => {
+                    const wasConnected = this.isConnected;
                     console.log(`WebSocket connection closed. Code: ${event.code}, Reason: ${event.reason}`);
-                    this.handleDisconnect(false, `Closed with code ${event.code}: ${event.reason}`); // Don't try graceful close
-                    this.emit(Event.Disconnect, { code: event.code, reason: event.reason });
-                     if (this.connectionPromise && !this.isConnected) { // Reject connect promise if closed before connect ack
+                    
+                    if (this.connectionPromise && !this.isConnected) { // Reject connect promise if closed before connect ack
                         this.connectionPromise.reject(new Error(`Connection closed before authentication (Code: ${event.code})`));
-                        this.connectionPromise = null;
                     }
-                    this.cleanupConnection();
+
+                    this.cleanupConnection(); // Clean up state like intervals, pending requests.
+                    this.emit(Event.Disconnect, { code: event.code, reason: event.reason });
+                
+                    // Only try to reconnect if we were previously connected and it wasn't a manual disconnect.
+                    if (wasConnected && !this.manualDisconnect) {
+                        this.tryReconnect();
+                    }
                 };
             } catch (error) {
                 console.error("Failed to create WebSocket:", error);
@@ -247,6 +260,9 @@ export class WKIM {
      * Disconnects from the server.
      */
     public disconnect(): void {
+        console.log("Manual disconnect initiated.");
+        this.manualDisconnect = true;
+        this.isReconnecting = false; // Stop any ongoing reconnection attempts
         this.handleDisconnect(true, "Manual disconnection");
     }
 
@@ -359,6 +375,12 @@ export class WKIM {
             .then(result => {
                 console.log("Authentication successful:", result);
                 this.isConnected = true;
+
+                // Reset reconnection state on successful connect
+                this.reconnectAttempts = 0;
+                this.isReconnecting = false;
+                this.manualDisconnect = false;
+
                 this.startPing();
                 this.emit(Event.Connect, result);
                  if (this.connectionPromise) {
@@ -373,6 +395,7 @@ export class WKIM {
                     this.connectionPromise.reject(error);
                     this.connectionPromise = null;
                 }
+                // Don't start reconnection on auth failure, it's a permanent error.
                 this.handleDisconnect(false, "Authentication failed"); // Close connection on auth failure
                 this.cleanupConnection(); // Ensure ws is closed
             });
@@ -508,7 +531,7 @@ export class WKIM {
                     .catch(err => {
                         console.error("Ping failed or timed out:", err);
                         this.emit(Event.Error, new Error("Ping timeout"));
-                        this.handleDisconnect(false, "Ping timeout"); // Disconnect if ping fails
+                        this.tryReconnect(); // Initiate reconnection on ping timeout
                     });
             } else {
                  this.stopPing(); // Stop if WS is not open
@@ -564,8 +587,8 @@ export class WKIM {
 
          // Clear connection promise if it exists and hasn't resolved/rejected
          if (this.connectionPromise) {
-             // Check if already connected to avoid rejecting after successful connect but before promise reset
-             if(!this.isConnected) {
+             // Only reject if we're not in a reconnection loop that will try again.
+             if(!this.isReconnecting && !this.isConnected) {
                 this.connectionPromise.reject(new Error("Connection closed during operation"));
              }
              this.connectionPromise = null;
@@ -581,6 +604,48 @@ export class WKIM {
              // Consider setting this.ws = null here or after a short delay if needed
         }
         // Do NOT clear eventListeners here, user might want to reconnect.
+    }
+
+    // --- Reconnection Methods ---
+
+    private tryReconnect(): void {
+        if (this.isReconnecting || this.manualDisconnect) {
+            return;
+        }
+        
+        // The onclose event handler should have already called cleanupConnection.
+        this.isReconnecting = true;
+        this.scheduleReconnect();
+    }
+    
+    private scheduleReconnect(): void {
+        if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+            console.error("Max reconnect attempts reached. Giving up.");
+            this.isReconnecting = false;
+            this.reconnectAttempts = 0;
+            this.emit(Event.Error, new Error("Reconnection failed."));
+            return;
+        }
+    
+        const delay = this.initialReconnectDelay * Math.pow(2, this.reconnectAttempts);
+        this.reconnectAttempts++;
+    
+        console.log(`Will attempt to reconnect in ${delay / 1000}s (Attempt ${this.reconnectAttempts}).`);
+        this.emit(Event.Reconnecting, { attempt: this.reconnectAttempts, delay });
+        
+        setTimeout(() => {
+            // Check if a manual disconnect happened while waiting
+            if (!this.isReconnecting) {
+                console.log("Reconnection aborted.");
+                return;
+            }
+            this.connect().catch(() => {
+                // connect() rejects if it fails. Schedule the next attempt.
+                if(this.isReconnecting) {
+                    this.scheduleReconnect();
+                }
+            });
+        }, delay);
     }
 
 }
