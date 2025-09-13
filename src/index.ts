@@ -142,6 +142,8 @@ type EventHandler = (...args: any[]) => void;
 // --- WKIM Class ---
 
 export class WKIM {
+    private static globalInstance: WKIM | null = null;
+    
     private ws: WebSocket | null = null;
     private url: string;
     private auth: AuthOptions;
@@ -161,25 +163,50 @@ export class WKIM {
     private initialReconnectDelay: number = 1000;
     private isReconnecting: boolean = false;
     private manualDisconnect: boolean = false;
+    private sessionId: string;
+    private beforeUnloadHandler: (() => void) | null = null;
 
     private constructor(url: string, auth: AuthOptions) {
         this.url = url;
-        this.auth = auth;
+        this.auth = auth || {};
+        this.sessionId = this.generateUUID(); // Unique session identifier
+        
+        // Ensure unique deviceId for each session
+        if (!this.auth.deviceId || this.auth.deviceId === '') {
+            this.auth.deviceId = `web_${this.sessionId.slice(0, 8)}_${Date.now()}`;
+        }
         // Ensure Event enum values are used for internal map keys
         Object.values(Event).forEach(event => this.eventListeners.set(event, []));
+        
+        // Setup beforeunload handler to cleanup connection on page refresh/close
+        this.setupBeforeUnloadHandler();
     }
 
     /**
      * Initializes the WKIM instance.
      * @param url WebSocket server URL (e.g., "ws://localhost:5100")
      * @param auth Authentication options { uid, token, ... }
+     * @param options Configuration options { singleton: boolean }
      * @returns A WKIM instance
      */
-    public static init(url: string, auth: AuthOptions): WKIM {
+    public static init(url: string, auth: AuthOptions, options: { singleton?: boolean }): WKIM {
         if (!url || !auth || !auth.uid || !auth.token) {
             throw new Error("URL, uid, and token are required for initialization.");
         }
-        return new WKIM(url, auth);
+        
+        // If singleton mode is enabled and there's an existing instance, disconnect it first
+        if (options.singleton !== false && WKIM.globalInstance) {
+            console.log("Destroying previous global instance...");
+            WKIM.globalInstance.destroy();
+        }
+        
+        const instance = new WKIM(url, auth);
+        
+        if (options.singleton !== false) {
+            WKIM.globalInstance = instance;
+        }
+        
+        return instance;
     }
 
     /**
@@ -263,7 +290,24 @@ export class WKIM {
         console.log("Manual disconnect initiated.");
         this.manualDisconnect = true;
         this.isReconnecting = false; // Stop any ongoing reconnection attempts
+        this.cleanupBeforeUnloadHandler(); // Remove page unload listeners
         this.handleDisconnect(true, "Manual disconnection");
+    }
+
+    /**
+     * Completely destroys the SDK instance, cleaning up all resources.
+     * Call this when you no longer need the SDK instance.
+     */
+    public destroy(): void {
+        console.log("Destroying SDK instance...");
+        this.disconnect();
+        this.eventListeners.clear();
+        this.pendingRequests.clear();
+        
+        // Clear global instance if this is it
+        if (WKIM.globalInstance === this) {
+            WKIM.globalInstance = null;
+        }
     }
 
     /**
@@ -368,7 +412,7 @@ export class WKIM {
             token: this.auth.token,
             deviceId: this.auth.deviceId,
             deviceFlag: this.auth.deviceFlag || 2, // Default to WEB
-            clientTimestamp: Date.now()
+            clientTimestamp: Date.now(),
             // Add version, clientKey if needed
         };
         this.sendRequest<ConnectResult>('connect', params, 5000) // 5s timeout for connect
@@ -607,6 +651,30 @@ export class WKIM {
     }
 
     // --- Reconnection Methods ---
+
+    private setupBeforeUnloadHandler(): void {
+        // Only setup in browser environment
+        if (typeof window !== 'undefined') {
+            this.beforeUnloadHandler = () => {
+                console.log('Page unloading, closing WebSocket connection...');
+                this.manualDisconnect = true;
+                this.isReconnecting = false;
+                if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                    this.ws.close(1001, 'Page unloaded');
+                }
+            };
+            window.addEventListener('beforeunload', this.beforeUnloadHandler);
+            window.addEventListener('pagehide', this.beforeUnloadHandler);
+        }
+    }
+
+    private cleanupBeforeUnloadHandler(): void {
+        if (typeof window !== 'undefined' && this.beforeUnloadHandler) {
+            window.removeEventListener('beforeunload', this.beforeUnloadHandler);
+            window.removeEventListener('pagehide', this.beforeUnloadHandler);
+            this.beforeUnloadHandler = null;
+        }
+    }
 
     private tryReconnect(): void {
         if (this.isReconnecting || this.manualDisconnect) {
