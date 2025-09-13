@@ -177,8 +177,13 @@ deviceId: 'web_12345678_1703123456789'
 
 ```javascript
 // 监听多个事件确保连接被正确关闭
+// 使用标准的 WebSocket 关闭代码
 window.addEventListener('beforeunload', cleanupHandler);
 window.addEventListener('pagehide', cleanupHandler);
+
+// 关闭代码说明：
+// 1000: 正常关闭
+// 3000-4999: 自定义关闭代码（用于异常情况）
 ```
 
 ### 4. 全局实例管理

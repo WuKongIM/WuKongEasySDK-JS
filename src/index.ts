@@ -189,13 +189,13 @@ export class WKIM {
      * @param options Configuration options { singleton: boolean }
      * @returns A WKIM instance
      */
-    public static init(url: string, auth: AuthOptions, options: { singleton?: boolean }): WKIM {
+    public static init(url: string, auth: AuthOptions, options: { singleton?: boolean } = {}): WKIM {
         if (!url || !auth || !auth.uid || !auth.token) {
             throw new Error("URL, uid, and token are required for initialization.");
         }
         
         // If singleton mode is enabled and there's an existing instance, disconnect it first
-        if (options.singleton !== false && WKIM.globalInstance) {
+        if (options.singleton && WKIM.globalInstance) {
             console.log("Destroying previous global instance...");
             WKIM.globalInstance.destroy();
         }
@@ -606,12 +606,11 @@ export class WKIM {
         if (this.ws) {
             this.stopPing();
             if (graceful && this.ws.readyState === WebSocket.OPEN) {
-                // Optionally send disconnect message if protocol supported it
-                 // this.sendNotification('disconnect', { reasonCode: 0, reason: 'Client initiated disconnect' });
+                // Use standard close codes: 1000 (normal), 3000-4999 (custom)
                 this.ws.close(1000, "Client disconnected"); // Normal closure
             } else if (this.ws.readyState === WebSocket.CONNECTING || this.ws.readyState === WebSocket.OPEN) {
-                 // Force close if not graceful or already closing
-                this.ws.close(1001, reason); // Going away
+                 // Force close with custom code for abnormal situations
+                this.ws.close(3001, reason.substring(0, 123)); // Custom code, limit reason length
             }
         }
         this.cleanupConnection(); // Clean up state regardless of how close happened
@@ -660,7 +659,7 @@ export class WKIM {
                 this.manualDisconnect = true;
                 this.isReconnecting = false;
                 if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-                    this.ws.close(1001, 'Page unloaded');
+                    this.ws.close(1000, 'Page unloaded');
                 }
             };
             window.addEventListener('beforeunload', this.beforeUnloadHandler);
