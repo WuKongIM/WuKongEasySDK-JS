@@ -603,7 +603,7 @@ export class WKIM {
             };
 
             // Validate required fields
-            if (!eventData.id || !eventData.type || !eventData.timestamp || eventData.data === undefined) {
+            if (!eventData.id || !eventData.type) {
                 console.error('Invalid event notification: missing required fields', params);
                 this.emit(Event.Error, new Error('Invalid event notification: missing required fields'));
                 return;
