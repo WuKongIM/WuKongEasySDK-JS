@@ -61,6 +61,8 @@ export enum Event {
     SendAck = 'sendack',
     /** The SDK is attempting to reconnect */
     Reconnecting = 'reconnecting',
+    /** Received a custom event notification from the server */
+    CustomEvent = 'customevent',
 }
 
 interface AuthOptions {
@@ -106,6 +108,23 @@ export interface RecvMessage {
     streamId?: string;
     streamFlag?: number;
     topic?: string;
+}
+
+/**
+ * Event Notification Interface
+ * Represents a custom event notification from the server
+ */
+export interface EventNotification {
+    /** Optional header with message flags */
+    header?: Header;
+    /** Unique event identifier */
+    id: string;
+    /** Event type/category */
+    type: string;
+    /** Event timestamp (milliseconds) */
+    timestamp: number;
+    /** Event data payload (JSON string or object) */
+    data: string | any;
 }
 
 interface ErrorObject {
@@ -549,6 +568,9 @@ export class WKIM {
                  this.emit(Event.Disconnect, notification.params); // Emit server reason
                  this.handleDisconnect(false, `Server disconnected: ${notification.params?.reason || notification.params?.reasonCode}`); // Close locally
                  break;
+            case 'event':
+                 this.handleEventNotification(notification.params);
+                 break;
             // Handle other notifications if needed
             default:
                 console.warn(`Received unhandled notification method: ${notification.method}`);
@@ -564,6 +586,47 @@ export class WKIM {
 
         // Alternative: Send as notification if server supports it (non-standard)
         // this.sendNotification('recvack', params);
+    }
+
+    /**
+     * Handles incoming event notifications from the server
+     * @param params Event notification parameters
+     */
+    private handleEventNotification(params: any): void {
+        try {
+            const eventData: EventNotification = {
+                header: params.header,
+                id: params.id,
+                type: params.type,
+                timestamp: params.timestamp,
+                data: params.data
+            };
+
+            // Validate required fields
+            if (!eventData.id || !eventData.type || !eventData.timestamp || eventData.data === undefined) {
+                console.error('Invalid event notification: missing required fields', params);
+                this.emit(Event.Error, new Error('Invalid event notification: missing required fields'));
+                return;
+            }
+
+            // Try to parse data if it's a JSON string
+            if (typeof eventData.data === 'string') {
+                try {
+                    eventData.data = JSON.parse(eventData.data);
+                } catch (e) {
+                    // Keep as string if not valid JSON
+                    console.debug('Event data is not JSON, keeping as string');
+                }
+            }
+
+            console.log(`Event notification received: type=${eventData.type}, id=${eventData.id}`);
+
+            // Emit the custom event to registered listeners
+            this.emit(Event.CustomEvent, eventData);
+        } catch (error) {
+            console.error('Error handling event notification:', error);
+            this.emit(Event.Error, new Error(`Failed to handle event notification: ${error}`));
+        }
     }
 
      private startPing(): void {
@@ -622,7 +685,7 @@ export class WKIM {
         this.stopPing();
 
         // Reject any pending requests
-        this.pendingRequests.forEach((pending, id) => {
+        this.pendingRequests.forEach((pending) => {
             clearTimeout(pending.timeoutTimer);
             pending.reject(new Error("Connection closed"));
         });

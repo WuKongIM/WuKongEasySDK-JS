@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EasyJSSDK - Event Protocol Test</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .status.connected {
+            background: #10b981;
+            color: white;
+        }
+
+        .status.disconnected {
+            background: #ef4444;
+            color: white;
+        }
+
+        .status.connecting {
+            background: #f59e0b;
+            color: white;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .panel {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .panel h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 18px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .event-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .event-item {
+            background: #f3f4f6;
+            padding: 12px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+            border-left: 4px solid #667eea;
+        }
+
+        .event-item.user { border-left-color: #10b981; }
+        .event-item.channel { border-left-color: #3b82f6; }
+        .event-item.notification { border-left-color: #f59e0b; }
+        .event-item.system { border-left-color: #ef4444; }
+
+        .event-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .event-type {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .event-time {
+            font-size: 12px;
+            color: #6b7280;
+        }
+
+        .event-data {
+            font-size: 13px;
+            color: #4b5563;
+            background: white;
+            padding: 8px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        button.primary {
+            background: #667eea;
+            color: white;
+        }
+
+        button.primary:hover {
+            background: #5568d3;
+        }
+
+        button.secondary {
+            background: #e5e7eb;
+            color: #333;
+        }
+
+        button.secondary:hover {
+            background: #d1d5db;
+        }
+
+        button.danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        button.danger:hover {
+            background: #dc2626;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .stat-card {
+            background: #f3f4f6;
+            padding: 15px;
+            border-radius: 6px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #6b7280;
+            margin-top: 5px;
+        }
+
+        .log-entry {
+            padding: 8px;
+            margin-bottom: 5px;
+            border-radius: 4px;
+            font-size: 13px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .log-entry.info { background: #dbeafe; color: #1e40af; }
+        .log-entry.success { background: #d1fae5; color: #065f46; }
+        .log-entry.warning { background: #fef3c7; color: #92400e; }
+        .log-entry.error { background: #fee2e2; color: #991b1b; }
+
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+            .stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 EasyJSSDK - Event Protocol Test</h1>
+            <p>Status: <span class="status disconnected" id="status">Disconnected</span></p>
+        </div>
+
+        <div class="panel">
+            <h2>📊 Statistics</h2>
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-value" id="totalEvents">0</div>
+                    <div class="stat-label">Total Events</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="userEvents">0</div>
+                    <div class="stat-label">User Events</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="channelEvents">0</div>
+                    <div class="stat-label">Channel Events</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="systemEvents">0</div>
+                    <div class="stat-label">System Events</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid">
+            <div class="panel">
+                <h2>🎮 Controls</h2>
+                <div class="controls">
+                    <button class="primary" id="connectBtn">Connect</button>
+                    <button class="danger" id="disconnectBtn" disabled>Disconnect</button>
+                    <button class="secondary" id="clearEventsBtn">Clear Events</button>
+                    <button class="secondary" id="clearLogsBtn">Clear Logs</button>
+                </div>
+                <div class="controls">
+                    <button class="secondary" id="simulateUserEvent">Simulate User Event</button>
+                    <button class="secondary" id="simulateSystemEvent">Simulate System Event</button>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h2>📝 Console Logs</h2>
+                <div class="event-list" id="logList"></div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h2>📢 Event Notifications</h2>
+            <div class="event-list" id="eventList"></div>
+        </div>
+    </div>
+
+    <script src="../dist/index.js"></script>
+    <script>
+        // Initialize SDK
+        let wkim = null;
+        let stats = {
+            total: 0,
+            user: 0,
+            channel: 0,
+            system: 0
+        };
+
+        // UI Elements
+        const statusEl = document.getElementById('status');
+        const connectBtn = document.getElementById('connectBtn');
+        const disconnectBtn = document.getElementById('disconnectBtn');
+        const clearEventsBtn = document.getElementById('clearEventsBtn');
+        const clearLogsBtn = document.getElementById('clearLogsBtn');
+        const eventList = document.getElementById('eventList');
+        const logList = document.getElementById('logList');
+        const simulateUserEventBtn = document.getElementById('simulateUserEvent');
+        const simulateSystemEventBtn = document.getElementById('simulateSystemEvent');
+
+        // Update status
+        function updateStatus(status, text) {
+            statusEl.className = `status ${status}`;
+            statusEl.textContent = text;
+        }
+
+        // Add log entry
+        function addLog(message, type = 'info') {
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry ${type}`;
+            logEntry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logList.insertBefore(logEntry, logList.firstChild);
+            
+            // Keep only last 50 logs
+            while (logList.children.length > 50) {
+                logList.removeChild(logList.lastChild);
+            }
+        }
+
+        // Add event to list
+        function addEvent(event) {
+            stats.total++;
+            
+            // Categorize event
+            let category = 'other';
+            if (event.type.startsWith('user.')) {
+                category = 'user';
+                stats.user++;
+            } else if (event.type.startsWith('channel.')) {
+                category = 'channel';
+                stats.channel++;
+            } else if (event.type.startsWith('system.')) {
+                category = 'system';
+                stats.system++;
+            }
+            
+            // Update stats
+            document.getElementById('totalEvents').textContent = stats.total;
+            document.getElementById('userEvents').textContent = stats.user;
+            document.getElementById('channelEvents').textContent = stats.channel;
+            document.getElementById('systemEvents').textContent = stats.system;
+            
+            // Create event item
+            const eventItem = document.createElement('div');
+            eventItem.className = `event-item ${category}`;
+            eventItem.innerHTML = `
+                <div class="event-header">
+                    <span class="event-type">${event.type}</span>
+                    <span class="event-time">${new Date(event.timestamp).toLocaleTimeString()}</span>
+                </div>
+                <div class="event-data">${JSON.stringify(event.data, null, 2)}</div>
+            `;
+            eventList.insertBefore(eventItem, eventList.firstChild);
+            
+            // Keep only last 20 events
+            while (eventList.children.length > 20) {
+                eventList.removeChild(eventList.lastChild);
+            }
+        }
+
+        // Connect button
+        connectBtn.addEventListener('click', () => {
+            updateStatus('connecting', 'Connecting...');
+            addLog('Initializing SDK...', 'info');
+            
+            wkim = WKIM.init('ws://localhost:5100', {
+                uid: 'test-user-' + Date.now(),
+                token: 'test-token',
+                deviceFlag: 2
+            });
+
+            // Setup event listeners
+            wkim.on(WKIM.Event.Connect, (result) => {
+                updateStatus('connected', 'Connected');
+                addLog('Connected to server', 'success');
+                connectBtn.disabled = true;
+                disconnectBtn.disabled = false;
+            });
+
+            wkim.on(WKIM.Event.Disconnect, (info) => {
+                updateStatus('disconnected', 'Disconnected');
+                addLog('Disconnected from server', 'warning');
+                connectBtn.disabled = false;
+                disconnectBtn.disabled = true;
+            });
+
+            wkim.on(WKIM.Event.Error, (error) => {
+                addLog(`Error: ${error.message}`, 'error');
+            });
+
+            wkim.on(WKIM.Event.CustomEvent, (event) => {
+                addLog(`Event received: ${event.type}`, 'success');
+                addEvent(event);
+            });
+
+            // Connect
+            wkim.connect().catch((error) => {
+                updateStatus('disconnected', 'Connection Failed');
+                addLog(`Connection failed: ${error.message}`, 'error');
+            });
+        });
+
+        // Disconnect button
+        disconnectBtn.addEventListener('click', () => {
+            if (wkim) {
+                wkim.disconnect();
+            }
+        });
+
+        // Clear events
+        clearEventsBtn.addEventListener('click', () => {
+            eventList.innerHTML = '';
+            stats = { total: 0, user: 0, channel: 0, system: 0 };
+            document.getElementById('totalEvents').textContent = '0';
+            document.getElementById('userEvents').textContent = '0';
+            document.getElementById('channelEvents').textContent = '0';
+            document.getElementById('systemEvents').textContent = '0';
+            addLog('Events cleared', 'info');
+        });
+
+        // Clear logs
+        clearLogsBtn.addEventListener('click', () => {
+            logList.innerHTML = '';
+            addLog('Logs cleared', 'info');
+        });
+
+        // Simulate events (for testing without server)
+        simulateUserEventBtn.addEventListener('click', () => {
+            const mockEvent = {
+                id: 'mock-' + Date.now(),
+                type: 'user.status.changed',
+                timestamp: Date.now(),
+                data: {
+                    userId: 'user123',
+                    status: 'online',
+                    lastSeen: Date.now()
+                }
+            };
+            addLog('Simulated user event', 'info');
+            addEvent(mockEvent);
+        });
+
+        simulateSystemEventBtn.addEventListener('click', () => {
+            const mockEvent = {
+                id: 'mock-' + Date.now(),
+                type: 'system.announcement',
+                timestamp: Date.now(),
+                data: {
+                    message: 'This is a test system announcement',
+                    severity: 'info',
+                    expiresAt: Date.now() + 3600000
+                }
+            };
+            addLog('Simulated system event', 'info');
+            addEvent(mockEvent);
+        });
+
+        // Initial log
+        addLog('Ready to connect', 'info');
+    </script>
+</body>
+</html>
+

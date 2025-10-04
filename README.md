@@ -29,6 +29,14 @@ im.on(WKIMEvent.Message, (message) => {
     console.log("Received message:", message);
     // Process received message (message.payload, message.fromUid, etc.)
 });
+
+// 2.1 Receive custom event notifications (NEW!)
+im.on(WKIMEvent.CustomEvent, (event) => {
+    console.log("Received event:", event);
+    // Handle custom events from server
+    // event = { id, type, timestamp, data }
+});
+
 // For more events, check the documentation
 https://github.com/WuKongIM/EasyJSSDK/blob/main/example/app.js#L132
 
@@ -40,6 +48,50 @@ const targetChannelID = "friend_user_id"; // Target user ID
 const messagePayload = { type: 1, content: "Hello from EasyJSSDK!" }; // Your custom message payload
 return im.send(targetChannelID, WKIMChannelType.Person, messagePayload);
 ```
+
+## Features
+
+- ✅ **WebSocket Communication** - Real-time bidirectional communication with WuKongIM server
+- ✅ **Message Sending & Receiving** - Send and receive messages with automatic acknowledgment
+- ✅ **Event Protocol** - Receive custom event notifications from the server (NEW!)
+- ✅ **Auto Reconnection** - Automatic reconnection with exponential backoff
+- ✅ **TypeScript Support** - Full TypeScript type definitions included
+- ✅ **Browser & Node.js** - Works in both browser and Node.js environments
+- ✅ **Singleton Mode** - Optional singleton pattern for global instance management
+
+## Event Protocol
+
+The SDK now supports the Event Protocol, allowing you to receive custom event notifications from the server:
+
+```javascript
+// Listen for custom events
+im.on(WKIMEvent.CustomEvent, (event) => {
+    console.log('Event Type:', event.type);
+    console.log('Event Data:', event.data);
+
+    // Handle different event types
+    switch (event.type) {
+        case 'user.status.changed':
+            updateUserStatus(event.data);
+            break;
+        case 'system.announcement':
+            showAnnouncement(event.data);
+            break;
+    }
+});
+```
+
+**Event Structure:**
+- `id` - Unique event identifier
+- `type` - Event type (e.g., "user.status.changed")
+- `timestamp` - Event timestamp in milliseconds
+- `data` - Event payload (automatically parsed from JSON)
+
+📖 **Learn More:**
+- [Event Protocol Quick Start](./docs/EVENT_PROTOCOL_QUICKSTART.md)
+- [Complete Event Protocol Documentation](./docs/EVENT_PROTOCOL.md)
+- [Event Protocol Example](./example/event-example.js)
+- [Interactive Event Test Page](./example/event-test.html)
 
 ## Example:
 

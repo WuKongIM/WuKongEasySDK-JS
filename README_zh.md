@@ -29,6 +29,14 @@ im.on(WKIMEvent.Message, (message) => {
     console.log("收到消息:", message);
     // 处理收到的消息 (message.payload, message.fromUid 等)
 });
+
+// 2.1 Receive custom event notifications (NEW!)
+im.on(WKIMEvent.CustomEvent, (event) => {
+    console.log("Received event:", event);
+    // Handle custom events from server
+    // event = { id, type, timestamp, data }
+});
+
 // 更多事件，查看对应文档
 
 // 3. 连接到服务器
