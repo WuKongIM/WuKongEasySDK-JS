@@ -65,6 +65,66 @@ export enum Event {
     CustomEvent = 'customevent',
 }
 
+/**
+ * Reason codes for operation results and disconnect causes.
+ * Mirrors the server-side ReasonCode (Go) values; do not reorder to preserve numeric mapping.
+ */
+export enum ReasonCode {
+    /** Unknown error */
+    Unknown = 0,
+    /** Success */
+    Success = 1,
+    /** Authentication failed */
+    AuthFail = 2,
+    /** Subscriber does not exist in the channel */
+    SubscriberNotExist = 3,
+    /** In blacklist */
+    InBlacklist = 4,
+    /** Channel does not exist */
+    ChannelNotExist = 5,
+    /** User not on node */
+    UserNotOnNode = 6,
+    /** Sender is offline; message cannot be delivered */
+    SenderOffline = 7,
+    /** Message key error; the message is invalid */
+    MsgKeyError = 8,
+    /** Payload decode failed */
+    PayloadDecodeError = 9,
+    /** Forwarding send packet failed */
+    ForwardSendPacketError = 10,
+    /** Not allowed to send */
+    NotAllowSend = 11,
+    /** Connection kicked */
+    ConnectKick = 12,
+    /** Not in whitelist */
+    NotInWhitelist = 13,
+    /** Failed to query user token */
+    QueryTokenError = 14,
+    /** System error */
+    SystemError = 15,
+    /** Invalid channel ID */
+    ChannelIDError = 16,
+    /** Node matching error */
+    NodeMatchError = 17,
+    /** Node not matched */
+    NodeNotMatch = 18,
+    /** Channel is banned */
+    Ban = 19,
+    /** Unsupported header */
+    NotSupportHeader = 20,
+    /** clientKey is empty */
+    ClientKeyIsEmpty = 21,
+    /** Rate limit */
+    RateLimit = 22,
+    /** Unsupported channel type */
+    NotSupportChannelType = 23,
+    /** Channel disbanded */
+    Disband = 24,
+    /** Sending is banned */
+    SendBan = 25,
+}
+
+
 interface AuthOptions {
     uid: string;
     token: string;
@@ -76,7 +136,7 @@ interface ConnectResult {
     serverKey: string;
     salt: string;
     timeDiff: number;
-    reasonCode: number;
+    reasonCode: ReasonCode;
     serverVersion?: number;
     nodeId?: number;
 }
@@ -84,13 +144,14 @@ interface ConnectResult {
 interface SendResult {
     messageId: string;
     messageSeq: number;
+    reasonCode: ReasonCode;
 }
 
 export interface Header {
     noPersist?: boolean;
     redDot?: boolean;
-    syncOnce?: boolean; 
-    dup?: boolean; 
+    syncOnce?: boolean;
+    dup?: boolean;
 }
 
 export interface RecvMessage {
@@ -162,7 +223,7 @@ type EventHandler = (...args: any[]) => void;
 
 export class WKIM {
     private static globalInstance: WKIM | null = null;
-    
+
     private ws: WebSocket | null = null;
     private url: string;
     private auth: AuthOptions;
@@ -189,14 +250,14 @@ export class WKIM {
         this.url = url;
         this.auth = auth || {};
         this.sessionId = this.generateUUID(); // Unique session identifier
-        
+
         // Ensure unique deviceId for each session
         if (!this.auth.deviceId || this.auth.deviceId === '') {
             this.auth.deviceId = `web_${this.sessionId.slice(0, 8)}_${Date.now()}`;
         }
         // Ensure Event enum values are used for internal map keys
         Object.values(Event).forEach(event => this.eventListeners.set(event, []));
-        
+
         // Setup beforeunload handler to cleanup connection on page refresh/close
         this.setupBeforeUnloadHandler();
     }
@@ -212,19 +273,19 @@ export class WKIM {
         if (!url || !auth || !auth.uid || !auth.token) {
             throw new Error("URL, uid, and token are required for initialization.");
         }
-        
+
         // If singleton mode is enabled and there's an existing instance, disconnect it first
         if (options.singleton && WKIM.globalInstance) {
             console.log("Destroying previous global instance...");
             WKIM.globalInstance.destroy();
         }
-        
+
         const instance = new WKIM(url, auth);
-        
+
         if (options.singleton !== false) {
             WKIM.globalInstance = instance;
         }
-        
+
         return instance;
     }
 
@@ -277,14 +338,14 @@ export class WKIM {
                 this.ws.onclose = (event) => {
                     const wasConnected = this.isConnected;
                     console.log(`WebSocket connection closed. Code: ${event.code}, Reason: ${event.reason}`);
-                    
+
                     if (this.connectionPromise && !this.isConnected) { // Reject connect promise if closed before connect ack
                         this.connectionPromise.reject(new Error(`Connection closed before authentication (Code: ${event.code})`));
                     }
 
                     this.cleanupConnection(); // Clean up state like intervals, pending requests.
                     this.emit(Event.Disconnect, { code: event.code, reason: event.reason });
-                
+
                     // Only try to reconnect if we were previously connected and it wasn't a manual disconnect.
                     if (wasConnected && !this.manualDisconnect) {
                         this.tryReconnect();
@@ -322,7 +383,7 @@ export class WKIM {
         this.disconnect();
         this.eventListeners.clear();
         this.pendingRequests.clear();
-        
+
         // Clear global instance if this is it
         if (WKIM.globalInstance === this) {
             WKIM.globalInstance = null;
@@ -742,12 +803,12 @@ export class WKIM {
         if (this.isReconnecting || this.manualDisconnect) {
             return;
         }
-        
+
         // The onclose event handler should have already called cleanupConnection.
         this.isReconnecting = true;
         this.scheduleReconnect();
     }
-    
+
     private scheduleReconnect(): void {
         if (this.reconnectAttempts >= this.maxReconnectAttempts) {
             console.error("Max reconnect attempts reached. Giving up.");
@@ -756,13 +817,13 @@ export class WKIM {
             this.emit(Event.Error, new Error("Reconnection failed."));
             return;
         }
-    
+
         const delay = this.initialReconnectDelay * Math.pow(2, this.reconnectAttempts);
         this.reconnectAttempts++;
-    
+
         console.log(`Will attempt to reconnect in ${delay / 1000}s (Attempt ${this.reconnectAttempts}).`);
         this.emit(Event.Reconnecting, { attempt: this.reconnectAttempts, delay });
-        
+
         setTimeout(() => {
             // Check if a manual disconnect happened while waiting
             if (!this.isReconnecting) {
@@ -781,4 +842,4 @@ export class WKIM {
 }
 
 // Export ChannelType and Event enums alongside the class for easier use
-export { ChannelType as WKIMChannelType, Event as WKIMEvent }; 
+export { ChannelType as WKIMChannelType, Event as WKIMEvent };
