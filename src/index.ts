@@ -712,8 +712,12 @@ export class WKIM {
                     .then(this.handlePong.bind(this)) // Technically pong is a notification, but use req/res for timeout
                     .catch(err => {
                         console.error("Ping failed or timed out:", err);
-                        this.emit(Event.Error, new Error("Ping timeout"));
-                        this.tryReconnect(); // Initiate reconnection on ping timeout
+                        this.emit(Event.Error, new Error(`Ping timeout: ${err?.message || err}`));
+                        // Treat ping timeout as an unhealthy connection: close and reconnect
+                        if (!this.manualDisconnect) {
+                            this.handleDisconnect(false, "Ping timeout");
+                            this.tryReconnect();
+                        }
                     });
             } else {
                  this.stopPing(); // Stop if WS is not open
