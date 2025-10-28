@@ -46,7 +46,8 @@ await im.connect()
 // 4. Example: Send a message after successful connection
 const targetChannelID = "friend_user_id"; // Target user ID
 const messagePayload = { type: 1, content: "Hello from EasyJSSDK!" }; // Your custom message payload
-return im.send(targetChannelID, WKIMChannelType.Person, messagePayload);
+const sendResult = await im.send(targetChannelID, WKIMChannelType.Person, messagePayload);
+// sendResult.reasonCode
 ```
 
 ## Features
