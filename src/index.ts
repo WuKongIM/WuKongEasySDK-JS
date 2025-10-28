@@ -154,6 +154,22 @@ export interface Header {
     dup?: boolean;
 }
 
+
+/**
+ * Message settings for a received message.
+ * Consolidates flags previously provided as separate fields.
+ */
+export interface MessageSetting {
+    /** Request delivery/read receipts */
+    receipt?: boolean;
+    /** Indicates a signaling/control message */
+    signal?: boolean;
+    /** Message is part of a stream */
+    stream?: boolean;
+    /** Message relates to a topic */
+    topic?: boolean;
+}
+
 export interface RecvMessage {
     header: Header;
     messageId: string;
@@ -165,10 +181,8 @@ export interface RecvMessage {
     payload: any; // Business-defined payload
     // Optional fields based on protocol version/settings
     clientMsgNo?: string;
-    streamNo?: string;
-    streamId?: string;
-    streamFlag?: number;
-    topic?: string;
+    /** Message settings consolidating stream/topic/flags */
+    setting?: MessageSetting;
 }
 
 /**
