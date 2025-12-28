@@ -124,12 +124,23 @@ export enum ReasonCode {
     SendBan = 25,
 }
 
+/**
+ * Device Flag Enum based on WuKongIM protocol
+ */
+export enum DeviceFlag {
+    /** Mobile APP */
+    App = 0,
+    /** Web Browser */
+    Web = 1,
+    /** Desktop App */
+    Desktop = 2,
+}
 
 interface AuthOptions {
     uid: string;
     token: string;
     deviceId?: string;
-    deviceFlag?: number; // 1:APP, 2:WEB etc.
+    deviceFlag?: DeviceFlag | number; // 0:App, 1:Web, 2:Desktop etc.
 }
 
 interface ConnectResult {
@@ -505,7 +516,7 @@ export class WKIM {
             uid: this.auth.uid,
             token: this.auth.token,
             deviceId: this.auth.deviceId,
-            deviceFlag: this.auth.deviceFlag || 2, // Default to WEB
+            deviceFlag: this.auth.deviceFlag ?? DeviceFlag.Web, // Default to WEB
             clientTimestamp: Date.now(),
             // Add version, clientKey if needed
         };
@@ -860,4 +871,4 @@ export class WKIM {
 }
 
 // Export ChannelType and Event enums alongside the class for easier use
-export { ChannelType as WKIMChannelType, Event as WKIMEvent };
+export { ChannelType as WKIMChannelType, Event as WKIMEvent, DeviceFlag as WKIMDeviceFlag };
