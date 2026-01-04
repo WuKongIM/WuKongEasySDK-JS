@@ -1,21 +1,478 @@
 // import { v4 as uuidv4 } from 'uuid'; // Remove this line
 
-// --- Environment Detection and WebSocket Initialization ---
-let WebSocketImpl: any; // Use 'any' initially to avoid complex type conflicts
-if (typeof WebSocket !== 'undefined') {
-    // Browser environment
-    WebSocketImpl = WebSocket;
-} else {
-    // Node.js environment (or environment without native WebSocket)
-    // Dynamically import 'ws' only if needed
-    try {
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
-        const Ws = require('ws') as typeof import('ws'); // Type the require
-        WebSocketImpl = Ws.WebSocket || Ws; // Handle potential default export differences
-    } catch (e) {
-        throw new Error('WebSocket is not available in this environment. Install \'ws\' package for Node.js.');
+// --- TypeScript Global Declarations for Mini Program Environments ---
+declare const wx: WeChatMiniProgram.Wx | undefined;
+declare const my: AlipayMiniProgram.My | undefined;
+declare const uni: UniApp.Uni | undefined;
+
+// WeChat Mini Program types
+declare namespace WeChatMiniProgram {
+    interface Wx {
+        connectSocket(options: ConnectSocketOptions): SocketTask;
+    }
+    interface ConnectSocketOptions {
+        url: string;
+        header?: Record<string, string>;
+        protocols?: string[];
+        success?: (res: any) => void;
+        fail?: (res: any) => void;
+        complete?: (res: any) => void;
+    }
+    interface SocketTask {
+        send(options: { data: string | ArrayBuffer; success?: () => void; fail?: (err: any) => void }): void;
+        close(options?: { code?: number; reason?: string; success?: () => void; fail?: (err: any) => void }): void;
+        onOpen(callback: (res: { header: Record<string, string> }) => void): void;
+        onClose(callback: (res: { code: number; reason: string }) => void): void;
+        onError(callback: (res: { errMsg: string }) => void): void;
+        onMessage(callback: (res: { data: string | ArrayBuffer }) => void): void;
     }
 }
+
+// Alipay Mini Program types
+declare namespace AlipayMiniProgram {
+    interface My {
+        connectSocket(options: ConnectSocketOptions): void;
+        onSocketOpen(callback: (res: any) => void): void;
+        onSocketClose(callback: (res: any) => void): void;
+        onSocketError(callback: (res: { errorMessage: string }) => void): void;
+        onSocketMessage(callback: (res: { data: string | ArrayBuffer }) => void): void;
+        sendSocketMessage(options: { data: string; success?: () => void; fail?: (err: any) => void }): void;
+        closeSocket(options?: { code?: number; reason?: string; success?: () => void; fail?: (err: any) => void }): void;
+        offSocketOpen(callback?: ((res: any) => void) | null): void;
+        offSocketClose(callback?: ((res: any) => void) | null): void;
+        offSocketError(callback?: ((res: any) => void) | null): void;
+        offSocketMessage(callback?: ((res: any) => void) | null): void;
+    }
+    interface ConnectSocketOptions {
+        url: string;
+        header?: Record<string, string>;
+        success?: (res: any) => void;
+        fail?: (res: any) => void;
+        complete?: (res: any) => void;
+    }
+}
+
+// UniApp types
+declare namespace UniApp {
+    interface Uni {
+        connectSocket(options: ConnectSocketOptions): SocketTask;
+    }
+    interface ConnectSocketOptions {
+        url: string;
+        header?: Record<string, string>;
+        protocols?: string[];
+        success?: (res: any) => void;
+        fail?: (res: any) => void;
+        complete?: (res: any) => void;
+    }
+    interface SocketTask {
+        send(options: { data: string | ArrayBuffer; success?: () => void; fail?: (err: any) => void }): void;
+        close(options?: { code?: number; reason?: string; success?: () => void; fail?: (err: any) => void }): void;
+        onOpen(callback: (res: { header: Record<string, string> }) => void): void;
+        onClose(callback: (res: { code: number; reason: string }) => void): void;
+        onError(callback: (res: { errMsg: string }) => void): void;
+        onMessage(callback: (res: { data: string | ArrayBuffer }) => void): void;
+    }
+}
+
+// --- WebSocket Adapter Interface ---
+/**
+ * Unified WebSocket adapter interface for cross-platform compatibility.
+ * All platform-specific adapters must implement this interface.
+ */
+interface IWebSocketAdapter {
+    readonly readyState: number;
+    onopen: ((event: any) => void) | null;
+    onmessage: ((event: { data: any }) => void) | null;
+    onerror: ((event: any) => void) | null;
+    onclose: ((event: { code: number; reason: string }) => void) | null;
+    send(data: string): void;
+    close(code?: number, reason?: string): void;
+}
+
+// WebSocket readyState constants
+const WS_CONNECTING = 0;
+const WS_OPEN = 1;
+const WS_CLOSING = 2;
+const WS_CLOSED = 3;
+
+// --- Platform Type Enum ---
+enum PlatformType {
+    Browser = 'browser',
+    NodeJS = 'nodejs',
+    WeChat = 'wechat',
+    Alipay = 'alipay',
+    UniApp = 'uniapp'
+}
+
+// --- WeChat Mini Program WebSocket Adapter ---
+class WeChatWebSocketAdapter implements IWebSocketAdapter {
+    private socketTask: WeChatMiniProgram.SocketTask | null = null;
+    private _readyState: number = WS_CONNECTING;
+    
+    onopen: ((event: any) => void) | null = null;
+    onmessage: ((event: { data: any }) => void) | null = null;
+    onerror: ((event: any) => void) | null = null;
+    onclose: ((event: { code: number; reason: string }) => void) | null = null;
+
+    constructor(url: string) {
+        if (typeof wx === 'undefined') {
+            throw new Error('WeChat Mini Program environment not detected');
+        }
+        
+        this.socketTask = wx.connectSocket({
+            url: url,
+            success: () => {
+                console.log('WeChat WebSocket connecting...');
+            },
+            fail: (err) => {
+                console.error('WeChat WebSocket connection failed:', err);
+                this._readyState = WS_CLOSED;
+                if (this.onerror) {
+                    this.onerror({ message: err.errMsg || 'Connection failed' });
+                }
+            }
+        });
+
+        this.socketTask.onOpen((res) => {
+            this._readyState = WS_OPEN;
+            if (this.onopen) {
+                this.onopen(res);
+            }
+        });
+
+        this.socketTask.onMessage((res) => {
+            if (this.onmessage) {
+                const data = res.data instanceof ArrayBuffer 
+                    ? new TextDecoder().decode(res.data) 
+                    : res.data;
+                this.onmessage({ data });
+            }
+        });
+
+        this.socketTask.onError((res) => {
+            console.error('WeChat WebSocket error:', res);
+            if (this.onerror) {
+                this.onerror({ message: res.errMsg || 'WebSocket error' });
+            }
+        });
+
+        this.socketTask.onClose((res) => {
+            this._readyState = WS_CLOSED;
+            if (this.onclose) {
+                this.onclose({ code: res.code || 1000, reason: res.reason || '' });
+            }
+        });
+    }
+
+    get readyState(): number {
+        return this._readyState;
+    }
+
+    send(data: string): void {
+        if (this._readyState !== WS_OPEN || !this.socketTask) {
+            throw new Error('WebSocket is not open');
+        }
+        this.socketTask.send({
+            data: data,
+            fail: (err) => {
+                console.error('WeChat WebSocket send failed:', err);
+                if (this.onerror) {
+                    this.onerror({ message: 'Send failed' });
+                }
+            }
+        });
+    }
+
+    close(code?: number, reason?: string): void {
+        if (this._readyState === WS_CLOSED || this._readyState === WS_CLOSING) {
+            return;
+        }
+        this._readyState = WS_CLOSING;
+        if (this.socketTask) {
+            this.socketTask.close({
+                code: code || 1000,
+                reason: reason || '',
+                fail: (err) => {
+                    console.error('WeChat WebSocket close failed:', err);
+                }
+            });
+        }
+    }
+}
+
+// --- Alipay Mini Program WebSocket Adapter ---
+class AlipayWebSocketAdapter implements IWebSocketAdapter {
+    private _readyState: number = WS_CONNECTING;
+    private boundOnOpen: ((res: any) => void) | null = null;
+    private boundOnMessage: ((res: any) => void) | null = null;
+    private boundOnError: ((res: any) => void) | null = null;
+    private boundOnClose: ((res: any) => void) | null = null;
+    
+    onopen: ((event: any) => void) | null = null;
+    onmessage: ((event: { data: any }) => void) | null = null;
+    onerror: ((event: any) => void) | null = null;
+    onclose: ((event: { code: number; reason: string }) => void) | null = null;
+
+    constructor(url: string) {
+        if (typeof my === 'undefined') {
+            throw new Error('Alipay Mini Program environment not detected');
+        }
+
+        // Bind event handlers
+        this.boundOnOpen = (res: any) => {
+            this._readyState = WS_OPEN;
+            if (this.onopen) {
+                this.onopen(res);
+            }
+        };
+
+        this.boundOnMessage = (res: any) => {
+            if (this.onmessage) {
+                const data = res.data instanceof ArrayBuffer 
+                    ? new TextDecoder().decode(res.data) 
+                    : res.data;
+                this.onmessage({ data });
+            }
+        };
+
+        this.boundOnError = (res: any) => {
+            console.error('Alipay WebSocket error:', res);
+            if (this.onerror) {
+                this.onerror({ message: res.errorMessage || 'WebSocket error' });
+            }
+        };
+
+        this.boundOnClose = (res: any) => {
+            this._readyState = WS_CLOSED;
+            this.cleanup();
+            if (this.onclose) {
+                this.onclose({ code: res.code || 1000, reason: res.reason || '' });
+            }
+        };
+
+        // Register global event listeners
+        my.onSocketOpen(this.boundOnOpen);
+        my.onSocketMessage(this.boundOnMessage);
+        my.onSocketError(this.boundOnError);
+        my.onSocketClose(this.boundOnClose);
+
+        // Connect
+        my.connectSocket({
+            url: url,
+            success: () => {
+                console.log('Alipay WebSocket connecting...');
+            },
+            fail: (err) => {
+                console.error('Alipay WebSocket connection failed:', err);
+                this._readyState = WS_CLOSED;
+                this.cleanup();
+                if (this.onerror) {
+                    this.onerror({ message: err.errorMessage || 'Connection failed' });
+                }
+            }
+        });
+    }
+
+    get readyState(): number {
+        return this._readyState;
+    }
+
+    send(data: string): void {
+        if (typeof my === 'undefined') {
+            throw new Error('Alipay Mini Program environment not detected');
+        }
+        if (this._readyState !== WS_OPEN) {
+            throw new Error('WebSocket is not open');
+        }
+        my.sendSocketMessage({
+            data: data,
+            fail: (err) => {
+                console.error('Alipay WebSocket send failed:', err);
+                if (this.onerror) {
+                    this.onerror({ message: 'Send failed' });
+                }
+            }
+        });
+    }
+
+    close(code?: number, reason?: string): void {
+        if (typeof my === 'undefined') {
+            return;
+        }
+        if (this._readyState === WS_CLOSED || this._readyState === WS_CLOSING) {
+            return;
+        }
+        this._readyState = WS_CLOSING;
+        my.closeSocket({
+            code: code || 1000,
+            reason: reason || '',
+            fail: (err) => {
+                console.error('Alipay WebSocket close failed:', err);
+            }
+        });
+    }
+
+    private cleanup(): void {
+        if (typeof my !== 'undefined') {
+            my.offSocketOpen(this.boundOnOpen);
+            my.offSocketMessage(this.boundOnMessage);
+            my.offSocketError(this.boundOnError);
+            my.offSocketClose(this.boundOnClose);
+            this.boundOnOpen = null;
+            this.boundOnMessage = null;
+            this.boundOnError = null;
+            this.boundOnClose = null;
+        }
+    }
+}
+
+// --- UniApp WebSocket Adapter ---
+class UniAppWebSocketAdapter implements IWebSocketAdapter {
+    private socketTask: UniApp.SocketTask | null = null;
+    private _readyState: number = WS_CONNECTING;
+    
+    onopen: ((event: any) => void) | null = null;
+    onmessage: ((event: { data: any }) => void) | null = null;
+    onerror: ((event: any) => void) | null = null;
+    onclose: ((event: { code: number; reason: string }) => void) | null = null;
+
+    constructor(url: string) {
+        if (typeof uni === 'undefined') {
+            throw new Error('UniApp environment not detected');
+        }
+        
+        this.socketTask = uni.connectSocket({
+            url: url,
+            success: () => {
+                console.log('UniApp WebSocket connecting...');
+            },
+            fail: (err) => {
+                console.error('UniApp WebSocket connection failed:', err);
+                this._readyState = WS_CLOSED;
+                if (this.onerror) {
+                    this.onerror({ message: err.errMsg || 'Connection failed' });
+                }
+            }
+        });
+
+        this.socketTask.onOpen((res) => {
+            this._readyState = WS_OPEN;
+            if (this.onopen) {
+                this.onopen(res);
+            }
+        });
+
+        this.socketTask.onMessage((res) => {
+            if (this.onmessage) {
+                const data = res.data instanceof ArrayBuffer 
+                    ? new TextDecoder().decode(res.data) 
+                    : res.data;
+                this.onmessage({ data });
+            }
+        });
+
+        this.socketTask.onError((res) => {
+            console.error('UniApp WebSocket error:', res);
+            if (this.onerror) {
+                this.onerror({ message: res.errMsg || 'WebSocket error' });
+            }
+        });
+
+        this.socketTask.onClose((res) => {
+            this._readyState = WS_CLOSED;
+            if (this.onclose) {
+                this.onclose({ code: res.code || 1000, reason: res.reason || '' });
+            }
+        });
+    }
+
+    get readyState(): number {
+        return this._readyState;
+    }
+
+    send(data: string): void {
+        if (this._readyState !== WS_OPEN || !this.socketTask) {
+            throw new Error('WebSocket is not open');
+        }
+        this.socketTask.send({
+            data: data,
+            fail: (err) => {
+                console.error('UniApp WebSocket send failed:', err);
+                if (this.onerror) {
+                    this.onerror({ message: 'Send failed' });
+                }
+            }
+        });
+    }
+
+    close(code?: number, reason?: string): void {
+        if (this._readyState === WS_CLOSED || this._readyState === WS_CLOSING) {
+            return;
+        }
+        this._readyState = WS_CLOSING;
+        if (this.socketTask) {
+            this.socketTask.close({
+                code: code || 1000,
+                reason: reason || '',
+                fail: (err) => {
+                    console.error('UniApp WebSocket close failed:', err);
+                }
+            });
+        }
+    }
+}
+
+// --- Platform Detection and WebSocket Factory ---
+function detectPlatform(): PlatformType {
+    // Check for UniApp first (it may also have wx defined in WeChat mini program mode)
+    if (typeof uni !== 'undefined' && typeof uni.connectSocket === 'function') {
+        return PlatformType.UniApp;
+    }
+    // Check for WeChat Mini Program
+    if (typeof wx !== 'undefined' && typeof wx.connectSocket === 'function') {
+        return PlatformType.WeChat;
+    }
+    // Check for Alipay Mini Program
+    if (typeof my !== 'undefined' && typeof my.connectSocket === 'function') {
+        return PlatformType.Alipay;
+    }
+    // Check for browser WebSocket
+if (typeof WebSocket !== 'undefined') {
+        return PlatformType.Browser;
+    }
+    // Fallback to Node.js
+    return PlatformType.NodeJS;
+}
+
+const currentPlatform = detectPlatform();
+
+// Factory function to create platform-appropriate WebSocket
+function createWebSocket(url: string): IWebSocketAdapter {
+    switch (currentPlatform) {
+        case PlatformType.UniApp:
+            return new UniAppWebSocketAdapter(url);
+        case PlatformType.WeChat:
+            return new WeChatWebSocketAdapter(url);
+        case PlatformType.Alipay:
+            return new AlipayWebSocketAdapter(url);
+        case PlatformType.Browser:
+            return new WebSocket(url) as unknown as IWebSocketAdapter;
+        case PlatformType.NodeJS:
+        default:
+    try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+                const Ws = require('ws') as typeof import('ws');
+                const WsImpl = Ws.WebSocket || Ws;
+                return new WsImpl(url) as unknown as IWebSocketAdapter;
+    } catch (e) {
+        throw new Error('WebSocket is not available in this environment. Install \'ws\' package for Node.js.');
+            }
+    }
+}
+
+// Export platform info for debugging
+export { PlatformType, currentPlatform }
 
 // --- Enums and Types ---
 
@@ -249,7 +706,7 @@ type EventHandler = (...args: any[]) => void;
 export class WKIM {
     private static globalInstance: WKIM | null = null;
 
-    private ws: WebSocket | null = null;
+    private ws: IWebSocketAdapter | null = null;
     private url: string;
     private auth: AuthOptions;
     public isConnected: boolean = false;
@@ -321,7 +778,7 @@ export class WKIM {
      */
     public connect(): Promise<void> {
         return new Promise((resolve, reject) => {
-             if (this.isConnected || this.ws?.readyState === WebSocket.CONNECTING) {
+             if (this.isConnected || this.ws?.readyState === WS_CONNECTING) {
                 console.warn("Connection already established or in progress.");
                 // If already connected, resolve immediately. If connecting, wait for existing promise.
                 if (this.isConnected) {
@@ -341,8 +798,8 @@ export class WKIM {
             this.connectionPromise = { resolve, reject };
 
             try {
-                console.log(`Connecting to ${this.url}...`);
-                this.ws = new WebSocketImpl(this.url) as WebSocket;
+                console.log(`Connecting to ${this.url}... (Platform: ${currentPlatform})`);
+                this.ws = createWebSocket(this.url);
 
                 this.ws.onopen = () => {
                     console.log("WebSocket connection opened. Authenticating...");
@@ -434,7 +891,7 @@ export class WKIM {
             topic?: string;
         } = {}
     ): Promise<SendResult> {
-        if (!this.isConnected || !this.ws || this.ws.readyState !== WebSocket.OPEN) {
+        if (!this.isConnected || !this.ws || this.ws.readyState !== WS_OPEN) {
             return Promise.reject(new Error("Not connected. Call connect() first."));
         }
         if (typeof payload !== 'object' || payload === null) {
@@ -552,7 +1009,7 @@ export class WKIM {
 
     private sendRequest<T>(method: string, params: any, timeoutMs = 15000): Promise<T> {
         return new Promise((resolve, reject) => {
-            if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+            if (!this.ws || this.ws.readyState !== WS_OPEN) {
                 return reject(new Error("WebSocket is not open."));
             }
 
@@ -583,7 +1040,7 @@ export class WKIM {
     }
 
      private sendNotification(method: string, params: any): void {
-        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+        if (!this.ws || this.ws.readyState !== WS_OPEN) {
             console.error("Cannot send notification, WebSocket is not open.");
             return;
         }
@@ -718,7 +1175,7 @@ export class WKIM {
      private startPing(): void {
         this.stopPing(); // Clear existing timers
         this.pingInterval = setInterval(() => {
-            if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+            if (this.ws && this.ws.readyState === WS_OPEN) {
                 this.sendRequest('ping', {}, this.PONG_TIMEOUT_MS)
                     .then(this.handlePong.bind(this)) // Technically pong is a notification, but use req/res for timeout
                     .catch(err => {
@@ -758,10 +1215,10 @@ export class WKIM {
          console.log(`Handling disconnect. Graceful: ${graceful}, Reason: ${reason}`);
         if (this.ws) {
             this.stopPing();
-            if (graceful && this.ws.readyState === WebSocket.OPEN) {
+            if (graceful && this.ws.readyState === WS_OPEN) {
                 // Use standard close codes: 1000 (normal), 3000-4999 (custom)
                 this.ws.close(1000, "Client disconnected"); // Normal closure
-            } else if (this.ws.readyState === WebSocket.CONNECTING || this.ws.readyState === WebSocket.OPEN) {
+            } else if (this.ws.readyState === WS_CONNECTING || this.ws.readyState === WS_OPEN) {
                  // Force close with custom code for abnormal situations
                 this.ws.close(3001, reason.substring(0, 123)); // Custom code, limit reason length
             }
@@ -811,7 +1268,7 @@ export class WKIM {
                 console.log('Page unloading, closing WebSocket connection...');
                 this.manualDisconnect = true;
                 this.isReconnecting = false;
-                if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                if (this.ws && this.ws.readyState === WS_OPEN) {
                     this.ws.close(1000, 'Page unloaded');
                 }
             };
