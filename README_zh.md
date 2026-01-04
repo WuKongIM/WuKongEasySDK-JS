@@ -48,6 +48,16 @@ const messagePayload = { type: 1, content: "来自 EasyJSSDK 的问候!" }; // �
 return im.send(targetUserId, WKIMChannelType.Person, messagePayload);
 ```
 
+## 特性
+
+- ✅ **WebSocket 通讯** - 与 WuKongIM 服务器进行实时双向通讯
+- ✅ **消息收发** - 支持消息发送与接收，并具有自动回执确认
+- ✅ **事件协议** - 接收来自服务器的自定义事件通知
+- ✅ **自动重连** - 支持带指数退避算法的自动重连机制
+- ✅ **TypeScript 支持** - 包含完整的 TypeScript 类型定义
+- ✅ **多平台支持** - 支持 浏览器、Node.js、微信小程序、支付宝小程序 以及 UniApp
+- ✅ **单例模式** - 可选的单例模式，方便全局实例管理
+
 ## 开发
 
 1.  克隆本仓库。

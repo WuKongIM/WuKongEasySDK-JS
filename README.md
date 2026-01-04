@@ -57,7 +57,7 @@ const sendResult = await im.send(targetChannelID, WKIMChannelType.Person, messag
 - ✅ **Event Protocol** - Receive custom event notifications from the server (NEW!)
 - ✅ **Auto Reconnection** - Automatic reconnection with exponential backoff
 - ✅ **TypeScript Support** - Full TypeScript type definitions included
-- ✅ **Browser & Node.js** - Works in both browser and Node.js environments
+- ✅ **Multi-Platform Support** - Works in Browser, Node.js, WeChat Mini Program, Alipay Mini Program, and UniApp
 - ✅ **Singleton Mode** - Optional singleton pattern for global instance management
 
 ## Event Protocol
