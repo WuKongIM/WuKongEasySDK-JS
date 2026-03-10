@@ -23,16 +23,18 @@ describe('Platform detection', () => {
   // But if a global WebSocket exists (e.g., from our mock setup in other tests),
   // it detects as Browser. We test the logic by checking currentPlatform.
 
-  it('currentPlatform is exported', async () => {
+  it('getPlatform() returns a valid platform', async () => {
     const mod = await import('../index');
-    expect(mod.currentPlatform).toBeDefined();
-    expect(Object.values(PlatformType)).toContain(mod.currentPlatform);
+    const platform = mod.getPlatform();
+    expect(platform).toBeDefined();
+    expect(Object.values(PlatformType)).toContain(platform);
   });
 
   it('detects Node.js or Browser platform in test environment', async () => {
     const mod = await import('../index');
+    const platform = mod.getPlatform();
     // In test environment, it should be either nodejs or browser
-    expect([PlatformType.NodeJS, PlatformType.Browser]).toContain(mod.currentPlatform);
+    expect([PlatformType.NodeJS, PlatformType.Browser]).toContain(platform);
   });
 });
 

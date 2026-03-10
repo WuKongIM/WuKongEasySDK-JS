@@ -447,11 +447,18 @@ if (typeof WebSocket !== 'undefined') {
     return PlatformType.NodeJS;
 }
 
-const currentPlatform = detectPlatform();
+let currentPlatform: PlatformType | undefined;
+
+function getPlatform(): PlatformType {
+    if (currentPlatform === undefined) {
+        currentPlatform = detectPlatform();
+    }
+    return currentPlatform;
+}
 
 // Factory function to create platform-appropriate WebSocket
 function createWebSocket(url: string): IWebSocketAdapter {
-    switch (currentPlatform) {
+    switch (getPlatform()) {
         case PlatformType.UniApp:
             return new UniAppWebSocketAdapter(url);
         case PlatformType.WeChat:
@@ -475,7 +482,7 @@ function createWebSocket(url: string): IWebSocketAdapter {
 }
 
 // Export platform info for debugging
-export { PlatformType, currentPlatform }
+export { PlatformType, getPlatform, currentPlatform }
 
 // --- Enums and Types ---
 
@@ -801,7 +808,7 @@ export class WKIM {
             this.connectionPromise = { resolve, reject };
 
             try {
-                console.log(`Connecting to ${this.url}... (Platform: ${currentPlatform})`);
+                console.log(`Connecting to ${this.url}... (Platform: ${getPlatform()})`);
                 this.ws = createWebSocket(this.url);
 
                 this.ws.onopen = () => {
