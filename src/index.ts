@@ -9,6 +9,8 @@ declare const uni: UniApp.Uni | undefined;
 declare namespace WeChatMiniProgram {
     interface Wx {
         connectSocket(options: ConnectSocketOptions): SocketTask;
+        arrayBufferToBase64(buffer: ArrayBuffer): string;
+        base64ToArrayBuffer(base64: string): ArrayBuffer;
     }
     interface ConnectSocketOptions {
         url: string;
@@ -908,7 +910,7 @@ export class WKIM {
             clientMsgNo: clientMsgNo,
             channelId: channelId,
             channelType: channelType,
-            payload: payload,
+            payload: this._encodePayloadToBase64(payload),
             header: header,
             topic: options.topic,
             setting: options.setting,
@@ -1100,6 +1102,13 @@ export class WKIM {
         switch (notification.method) {
             case 'recv':
                 const messageData = notification.params as RecvMessage;
+                if (typeof messageData.payload === 'string') {
+                    try {
+                        messageData.payload = JSON.parse(this._decodeBase64ToStr(messageData.payload));
+                    } catch (e) {
+                        // Keep original string if decode/parse fails
+                    }
+                }
                 this.emit(Event.Message, messageData);
                 // Automatically acknowledge receipt
                 this.sendRecvAck(messageData.header, messageData.messageId, messageData.messageSeq);
@@ -1119,6 +1128,66 @@ export class WKIM {
             default:
                 console.warn(`Received unhandled notification method: ${notification.method}`);
         }
+    }
+
+    /**
+     * Encode payload object to base64 string.
+     * WuKongIM server expects payload as []byte (base64 in JSON).
+     */
+    private _encodePayloadToBase64(payload: object): string {
+        const json = JSON.stringify(payload);
+
+        // Browser environment
+        if (typeof TextEncoder !== 'undefined' && typeof btoa !== 'undefined') {
+            const bytes = new TextEncoder().encode(json);
+            let binary = '';
+            for (let i = 0; i < bytes.length; i++) {
+                binary += String.fromCharCode(bytes[i]);
+            }
+            return btoa(binary);
+        }
+
+        // Node.js environment
+        if (typeof Buffer !== 'undefined') {
+            return Buffer.from(json, 'utf-8').toString('base64');
+        }
+
+        // WeChat Mini Program environment
+        if (typeof wx !== 'undefined' && wx?.arrayBufferToBase64) {
+            const encoder = new TextEncoder();
+            const bytes = encoder.encode(json);
+            return wx.arrayBufferToBase64(bytes.buffer);
+        }
+
+        throw new Error('No base64 encoding method available');
+    }
+
+    /**
+     * Decode base64 string to UTF-8 string.
+     */
+    private _decodeBase64ToStr(base64Str: string): string {
+        // Browser environment
+        if (typeof atob !== 'undefined' && typeof TextDecoder !== 'undefined') {
+            const binary = atob(base64Str);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) {
+                bytes[i] = binary.charCodeAt(i);
+            }
+            return new TextDecoder().decode(bytes);
+        }
+
+        // Node.js environment
+        if (typeof Buffer !== 'undefined') {
+            return Buffer.from(base64Str, 'base64').toString('utf-8');
+        }
+
+        // WeChat Mini Program environment
+        if (typeof wx !== 'undefined' && wx?.base64ToArrayBuffer) {
+            const buf = wx.base64ToArrayBuffer(base64Str);
+            return new TextDecoder().decode(new Uint8Array(buf));
+        }
+
+        throw new Error('No base64 decoding method available');
     }
 
     private sendRecvAck(header: Header, messageId: string, messageSeq: number): void {

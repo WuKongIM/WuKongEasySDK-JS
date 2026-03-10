@@ -16,6 +16,17 @@ getInstances = mock.getInstances;
 // Now import the SDK (will detect 'browser' platform due to global WebSocket)
 import { WKIM, Event, ChannelType, DeviceFlag } from '../index';
 
+/** Encode a JSON-serializable value to base64 (matching server wire format). */
+function toBase64(obj: unknown): string {
+  const json = JSON.stringify(obj);
+  const bytes = new TextEncoder().encode(json);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
+
 /**
  * Helper: create a WKIM instance and return it with its MockWebSocket.
  * Does NOT auto-connect.
@@ -126,7 +137,7 @@ describe('Event system', () => {
         channelId: 'chan1',
         channelType: 1,
         fromUid: 'sender1',
-        payload: { text: 'hello' },
+        payload: toBase64({ text: 'hello' }),
       },
     }));
 
@@ -154,7 +165,7 @@ describe('Event system', () => {
         channelId: 'chan1',
         channelType: 1,
         fromUid: 'sender1',
-        payload: { text: 'hello' },
+        payload: toBase64({ text: 'hello' }),
       },
     }));
 
@@ -179,7 +190,7 @@ describe('Event system', () => {
         channelId: 'chan1',
         channelType: 1,
         fromUid: 'sender1',
-        payload: { text: 'world' },
+        payload: toBase64({ text: 'world' }),
       },
     }));
 
@@ -206,7 +217,7 @@ describe('Event system', () => {
         channelId: 'chan1',
         channelType: 1,
         fromUid: 'sender1',
-        payload: {},
+        payload: toBase64({}),
       },
     }));
 
@@ -354,7 +365,7 @@ describe('Message sending', () => {
       params: expect.objectContaining({
         channelId: 'chan1',
         channelType: ChannelType.Person,
-        payload: { text: 'hello' },
+        payload: toBase64({ text: 'hello' }),
       }),
     });
     expect(sendMsg.id).toBeDefined();
@@ -473,7 +484,7 @@ describe('Message handling', () => {
         channelId: 'channel1',
         channelType: 2,
         fromUid: 'user2',
-        payload: { text: 'hi there' },
+        payload: toBase64({ text: 'hi there' }),
       },
     }));
 
