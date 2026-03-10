@@ -462,7 +462,8 @@ function createWebSocket(url: string): IWebSocketAdapter {
         default:
     try {
         // eslint-disable-next-line @typescript-eslint/no-var-requires
-                const Ws = require('ws') as typeof import('ws');
+                const dynamicRequire = new Function('mod', 'return require(mod)') as NodeRequire;
+                const Ws = dynamicRequire('ws') as typeof import('ws');
                 const WsImpl = Ws.WebSocket || Ws;
                 return new WsImpl(url) as unknown as IWebSocketAdapter;
     } catch (e) {

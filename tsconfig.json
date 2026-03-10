@@ -3,7 +3,7 @@
     "target": "ES2016",                     /* Set the JavaScript language version for emitted JavaScript and include compatible library declarations. */
     "module": "ESNext",                   /* Specify what module code is generated. */
     "moduleResolution": "node",            /* Specify how TypeScript looks up files from modules. */
-    "outDir": "./dist",                     /* Specify an output folder for all emitted files. */
+    "outDir": "./dist/esm",                  /* Specify an output folder for all emitted files. */
     "rootDir": "./src",                     /* Specify the root folder within your source files. */
     "declaration": true,                    /* Generate .d.ts files from TypeScript and JavaScript files in your project. */
     "sourceMap": true,                      /* Create source map files for emitted JavaScript files. */
