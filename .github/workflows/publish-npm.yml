@@ -57,12 +57,16 @@ jobs:
             echo "Error: dist directory not found after build"
             exit 1
           fi
-          if [ ! -f "dist/index.js" ]; then
-            echo "Error: dist/index.js not found after build"
+          if [ ! -f "dist/esm/index.js" ]; then
+            echo "Error: dist/esm/index.js not found after build"
             exit 1
           fi
-          if [ ! -f "dist/index.d.ts" ]; then
-            echo "Error: dist/index.d.ts not found after build"
+          if [ ! -f "dist/esm/index.d.ts" ]; then
+            echo "Error: dist/esm/index.d.ts not found after build"
+            exit 1
+          fi
+          if [ ! -f "dist/cjs/index.js" ]; then
+            echo "Error: dist/cjs/index.js not found after build"
             exit 1
           fi
           echo "Build verification passed"
