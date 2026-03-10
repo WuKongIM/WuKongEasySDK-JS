@@ -10,10 +10,35 @@ A simple and easy-to-use communication SDK for WuKongIM, based on its JSON-RPC p
 npm install easyjssdk
 ```
 
+## Platform Support
+
+| Platform | Status | Notes |
+|----------|--------|-------|
+| Browser | ✅ | Native WebSocket |
+| Node.js | ✅ | Via `ws` (auto-installed as optional dependency) |
+| WeChat Mini Program | ✅ | Uses `wx.connectSocket` |
+| Alipay Mini Program | ✅ | Uses `my.connectSocket` |
+| UniApp | ✅ | Uses `uni.connectSocket` |
+
+### WeChat Mini Program
+
+The SDK is fully compatible with WeChat Mini Program npm build:
+
+1. Install the package in your mini program project:
+   ```bash
+   npm install easyjssdk
+   ```
+2. In WeChat DevTools, go to **Tools → Build npm**
+3. Import and use:
+   ```javascript
+   const { WKIM, WKIMChannelType, WKIMEvent } = require('easyjssdk');
+   ```
+
+The `miniprogram` field in `package.json` points to the CJS build, so the mini program build tool can locate the entry correctly. The `ws` dependency is optional and will not be bundled.
+
 ## Usage
 
 ```typescript
-// ... existing code ...
 import { WKIM, WKIMChannelType, WKIMEvent } from 'easyjssdk';
 
 // 1. Initialization
@@ -30,39 +55,59 @@ im.on(WKIMEvent.Message, (message) => {
     // Process received message (message.payload, message.fromUid, etc.)
 });
 
-// 2.1 Receive custom event notifications (NEW!)
+// 2.1 Receive custom event notifications
 im.on(WKIMEvent.CustomEvent, (event) => {
     console.log("Received event:", event);
     // Handle custom events from server
     // event = { id, type, timestamp, data }
 });
 
-// For more events, check the documentation
-https://github.com/WuKongIM/EasyJSSDK/blob/main/example/app.js#L132
+// For more events, see:
+// https://github.com/WuKongIM/EasyJSSDK/blob/main/example/app.js#L132
 
 // 3. Connect to the server
 await im.connect()
 
 // 4. Example: Send a message after successful connection
 const targetChannelID = "friend_user_id"; // Target user ID
-const messagePayload = { type: 1, content: "Hello from EasyJSSDK!" }; // Your custom message payload
+const messagePayload = { type: 1, content: "Hello from EasyJSSDK!" };
 const sendResult = await im.send(targetChannelID, WKIMChannelType.Person, messagePayload);
 // sendResult.reasonCode
 ```
 
 ## Features
 
-- ✅ **WebSocket Communication** - Real-time bidirectional communication with WuKongIM server
-- ✅ **Message Sending & Receiving** - Send and receive messages with automatic acknowledgment
-- ✅ **Event Protocol** - Receive custom event notifications from the server (NEW!)
-- ✅ **Auto Reconnection** - Automatic reconnection with exponential backoff
-- ✅ **TypeScript Support** - Full TypeScript type definitions included
-- ✅ **Multi-Platform Support** - Works in Browser, Node.js, WeChat Mini Program, Alipay Mini Program, and UniApp
-- ✅ **Singleton Mode** - Optional singleton pattern for global instance management
+- **WebSocket Communication** - Real-time bidirectional communication with WuKongIM server
+- **Message Sending & Receiving** - Send and receive messages with automatic acknowledgment
+- **Event Protocol** - Receive custom event notifications from the server
+- **Auto Reconnection** - Automatic reconnection with exponential backoff
+- **TypeScript Support** - Full TypeScript type definitions included
+- **Multi-Platform** - Browser, Node.js, WeChat / Alipay Mini Program, UniApp
+- **Dual Module Format** - Ships both ESM and CommonJS builds
+- **Singleton Mode** - Optional singleton pattern for global instance management
+
+## Module Formats
+
+The package ships dual builds:
+
+- **ESM** (`dist/esm/`) — for modern bundlers and `import` syntax
+- **CJS** (`dist/cjs/`) — for `require()`, Node.js, and mini program environments
+
+The `exports` field in `package.json` handles automatic resolution:
+
+```jsonc
+// package.json (excerpt)
+{
+  "main": "dist/cjs/index.js",       // CJS entry
+  "module": "dist/esm/index.js",     // ESM entry
+  "types": "dist/esm/index.d.ts",    // TypeScript types
+  "miniprogram": "dist/cjs"          // WeChat Mini Program entry
+}
+```
 
 ## Event Protocol
 
-The SDK now supports the Event Protocol, allowing you to receive custom event notifications from the server:
+The SDK supports the Event Protocol, allowing you to receive custom event notifications from the server:
 
 ```javascript
 // Listen for custom events
@@ -88,13 +133,13 @@ im.on(WKIMEvent.CustomEvent, (event) => {
 - `timestamp` - Event timestamp in milliseconds
 - `data` - Event payload (automatically parsed from JSON)
 
-📖 **Learn More:**
+See also:
 - [Event Protocol Quick Start](./docs/EVENT_PROTOCOL_QUICKSTART.md)
 - [Complete Event Protocol Documentation](./docs/EVENT_PROTOCOL.md)
 - [Event Protocol Example](./example/event-example.js)
 - [Interactive Event Test Page](./example/event-test.html)
 
-## Example:
+## Example
 
 ![Example](./docs/example.png)
 
@@ -102,29 +147,21 @@ im.on(WKIMEvent.CustomEvent, (event) => {
 
 1. Clone the repository.
 2. Run `npm install`.
-3. Run `npm run build` to compile TypeScript to JavaScript.
+3. Run `npm run build` to compile TypeScript (outputs both ESM and CJS).
+4. Run `npm test` to run the test suite.
 
 ## Running the Example
 
 This repository includes a simple HTML/JS example to test the SDK.
 
-1.  **Build the SDK:** Make sure you have built the library first:
+1.  **Build the SDK:**
     ```bash
     npm run build
     ```
-2.  **Start a Local Server:** Navigate to the root directory of this project (`EasyJSSDK`) in your terminal. You need to serve the files using a local web server because the example uses ES Modules. A simple way is using `http-server`:
+2.  **Start a local server:**
     ```bash
-    # If you don't have http-server, install it globally:
     # npm install -g http-server
-
-    # Run the server from the EasyJSSDK directory:
     http-server .
     ```
-    Alternatively, use the VS Code "Live Server" extension or any other local server, ensuring it serves from the project root directory (`EasyJSSDK`).
-
-3.  **Open the Example:** Open your web browser and navigate to the example page, typically:
-    `http://localhost:8080/example/`
-    (Adjust the port number if your server uses a different one).
-
-4.  **Test:** Enter your WuKongIM server details (URL, UID, Token) and use the buttons to connect, disconnect, and send messages. 
-
+3.  **Open the example:** Navigate to `http://localhost:8080/example/`
+4.  **Test:** Enter your WuKongIM server details (URL, UID, Token) and use the buttons to connect, disconnect, and send messages.
