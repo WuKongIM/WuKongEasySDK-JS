@@ -2,7 +2,7 @@
 
 ## NPM Publishing Workflow
 
-The `publish-npm.yml` workflow automatically publishes your EasyJSSDK package to npm when you create a new release or push a version tag.
+The `publish-npm.yml` workflow automatically publishes your EasyJSSDK package to npm when you push a version tag.
 
 ### Setup Instructions
 
@@ -25,16 +25,8 @@ The `publish-npm.yml` workflow automatically publishes your EasyJSSDK package to
 
 #### 3. Publishing Process
 
-The workflow triggers when you:
+The workflow triggers when you push a version tag:
 
-**Option A: Create a GitHub Release**
-1. Go to your repository → Releases
-2. Click "Create a new release"
-3. Create a new tag (e.g., `v1.0.6`)
-4. Fill in release title and description
-5. Click "Publish release"
-
-**Option B: Push a Version Tag**
 ```bash
 # Update version in package.json first
 npm version patch  # or minor, major
@@ -47,22 +39,13 @@ git push origin --tags
 - ✅ **Version Validation**: Ensures package.json version matches the git tag
 - ✅ **Dependency Installation**: Uses npm ci for faster, reliable installs
 - ✅ **Build Verification**: Confirms all required files are generated
-- ✅ **Test Execution**: Runs tests if available (currently shows warning)
+- ✅ **Test Execution**: Requires the complete test suite to pass before publishing
 - ✅ **Automatic Publishing**: Publishes to npm registry
 - ✅ **Release Summary**: Creates a summary with installation instructions
 
-#### 5. Recommended Improvements
+#### 5. Pull Request Validation
 
-Consider adding proper tests to your project:
-
-```json
-{
-  "scripts": {
-    "test": "node test/test.js",
-    "test:watch": "npm test -- --watch"
-  }
-}
-```
+The separate `ci.yml` workflow runs tests and builds the package for every pull request and push to `main`.
 
 ### Troubleshooting
 
@@ -77,5 +60,5 @@ Consider adding proper tests to your project:
 
 - Never commit npm tokens to your repository
 - Use GitHub Secrets for sensitive information
-- The workflow only runs on tags/releases for security
+- The publishing workflow only runs on version tags for security
 - Consider using npm provenance for additional security
