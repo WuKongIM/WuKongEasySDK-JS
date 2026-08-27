@@ -38,6 +38,7 @@ git push origin --tags
 
 - ✅ **Version Validation**: Ensures package.json version matches the git tag
 - ✅ **Dependency Installation**: Uses npm ci for faster, reliable installs
+- ✅ **Pinned Publishing Runtime**: Uses npm 11 with Node.js 20 for stable OIDC and provenance support
 - ✅ **Build Verification**: Confirms all required files are generated
 - ✅ **Test Execution**: Requires the complete test suite to pass before publishing
 - ✅ **Automatic Publishing**: Publishes to npm registry

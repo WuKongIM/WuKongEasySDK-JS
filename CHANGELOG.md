@@ -9,6 +9,7 @@ All notable changes to EasyJSSDK will be documented in this file.
 
 ### Changed
 - Publishing now uses a single version-tag trigger and fails when tests fail
+- Publishing pins npm 11 to remain compatible with the Node.js 20 release runner
 
 ### Fixed
 - Aligned device flag documentation, examples, and JSON schema with WuKongIM: APP `0`, WEB `1`, and PC/Desktop `2`
