@@ -106,8 +106,7 @@ onEventType('system.announcement', (event) => {
 // Initialize
 const wkim = WKIM.init('ws://localhost:5100', {
     uid: 'user123',
-    token: 'your-token',
-    deviceFlag: 2 // WEB
+    token: 'your-token'
 });
 
 // Event handler map
@@ -310,4 +309,3 @@ For issues or questions:
 - Check the [main README](../README.md)
 - Review the [schema documentation](./wukongim_rpc_schema.json)
 - Open an issue on GitHub
-

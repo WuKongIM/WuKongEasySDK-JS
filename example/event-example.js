@@ -13,8 +13,7 @@
 const wkim = WKIM.init('ws://localhost:5100', {
     uid: 'user123',
     token: 'your-auth-token',
-    deviceId: 'web-device-001',
-    deviceFlag: 2 // 2 = WEB
+    deviceId: 'web-device-001'
 });
 
 // ============================================
@@ -217,4 +216,3 @@ onEventType('user.status.changed', (event) => {
 window.addEventListener('beforeunload', () => {
     wkim.disconnect();
 });
-

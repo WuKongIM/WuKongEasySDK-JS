@@ -76,8 +76,8 @@
       },
       "DeviceFlagEnum": {
          "type": "integer",
-         "description": "设备标识 (1: APP, 2: WEB, 3: SYSTEM, etc.)",
-         "enum": [1, 2, 3]
+         "description": "设备标识（0: APP、1: WEB、2: PC）",
+         "enum": [0, 1, 2]
       },
       "ReasonCodeEnum": {
           "type": "integer",
@@ -383,4 +383,4 @@
       }
     }
   }
-} 
+}
