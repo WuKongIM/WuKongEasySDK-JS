@@ -591,15 +591,13 @@ export enum ReasonCode {
     SendBan = 25,
 }
 
-/**
- * Device Flag Enum based on WuKongIM protocol
- */
+/** Device categories and their wire values in the WuKongIM protocol. */
 export enum DeviceFlag {
-    /** Mobile APP */
+    /** APP client (protocol value: 0) */
     App = 0,
-    /** Web Browser */
+    /** Web client (protocol value: 1) */
     Web = 1,
-    /** Desktop App */
+    /** PC / desktop client (protocol value: 2) */
     Desktop = 2,
 }
 
@@ -607,7 +605,7 @@ interface AuthOptions {
     uid: string;
     token: string;
     deviceId?: string;
-    deviceFlag?: DeviceFlag | number; // 0:App, 1:Web, 2:Desktop etc.
+    deviceFlag?: DeviceFlag | number; // 0:APP, 1:WEB, 2:PC/Desktop
 }
 
 interface ConnectResult {

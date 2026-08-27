@@ -39,14 +39,14 @@ The `miniprogram` field in `package.json` points to the CJS build, so the mini p
 ## Usage
 
 ```typescript
-import { WKIM, WKIMChannelType, WKIMEvent } from 'easyjssdk';
+import { WKIM, WKIMChannelType, WKIMDeviceFlag, WKIMEvent } from 'easyjssdk';
 
 // 1. Initialization
 const im = WKIM.init("ws://your-wukongim-server.com:5200", {
     uid: "your_user_id",        // Your user ID
-    token: "your_auth_token"    // Your authentication token
+    token: "your_auth_token",   // Your authentication token
     // deviceId: "optional_device_id", // Optional device ID
-    // deviceFlag: 2 // Optional device flag (1:APP, 2:WEB, default is 2)
+    deviceFlag: WKIMDeviceFlag.Web // Optional: APP=0, WEB=1, PC=2
 });
 
 // 2. Receive messages

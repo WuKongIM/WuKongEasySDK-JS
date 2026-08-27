@@ -39,14 +39,14 @@ SDK 完全兼容微信小程序的 npm 构建：
 ## 使用方法
 
 ```typescript
-import { WKIM, WKIMChannelType, WKIMEvent } from 'easyjssdk';
+import { WKIM, WKIMChannelType, WKIMDeviceFlag, WKIMEvent } from 'easyjssdk';
 
 // 1. 初始化
 const im = WKIM.init("ws://your-wukongim-server.com:5200", {
     uid: "your_user_id",        // 你的用户 ID
-    token: "your_auth_token"    // 你的认证令牌
+    token: "your_auth_token",   // 你的认证令牌
     // deviceId: "optional_device_id", // 可选的设备 ID
-    // deviceFlag: 2 // 可选的设备标识 (1:APP, 2:WEB, 默认为 2)
+    deviceFlag: WKIMDeviceFlag.Web // 可选：APP=0、WEB=1、PC=2
 });
 
 // 2. 收消息
