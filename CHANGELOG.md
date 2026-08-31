@@ -2,6 +2,12 @@
 
 All notable changes to EasyJSSDK will be documented in this file.
 
+## [Unreleased]
+
+### Fixed
+- Disabled SDK logging by default and prevented tokens, payloads, raw frames, response bodies, and platform error objects from reaching console output
+- Replaced raw event, identifier, and error logging in shipped examples and event-protocol documentation with fixed operational statuses
+
 ## [2.0.2] - 2026-08-28
 
 ### Added

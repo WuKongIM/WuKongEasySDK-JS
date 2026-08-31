@@ -19,10 +19,10 @@ let im = null; // WKIM instance
 
 // --- Helper Functions ---
 
-function log(message, ...args) {
+function log(message) {
     const timestamp = new Date().toLocaleTimeString();
-    const logEntry = `[${timestamp}] ${message}${args.length > 0 ? ': ' + JSON.stringify(args, null, 2) : ''}\n`;
-    console.log(message, ...args);
+    const logEntry = `[${timestamp}] ${message}\n`;
+    console.log(message);
     if (logArea) {
         logArea.textContent += logEntry;
         logArea.scrollTop = logArea.scrollHeight; // Auto-scroll
@@ -53,7 +53,7 @@ function handleConnect() {
         return;
     }
 
-    log(`Initializing WKIM with URL: ${url}, UID: ${uid}`);
+    log("Initializing WKIM");
     try {
         im = WKIM.init(url, { uid, token });
         setupEventListeners();
@@ -66,14 +66,14 @@ function handleConnect() {
                 log("Connection process initiated successfully (waiting for Connect event).");
                 // Actual connected state confirmed by WKIMEvent.Connect
             })
-            .catch(error => {
-                log("Error during connection attempt:", error);
+            .catch(() => {
+                log('Connection attempt failed');
                 updateUI(false);
                 connectBtn.textContent = 'Connect';
             });
 
-    } catch (error) {
-        log("Initialization Error:", error);
+    } catch (_) {
+        log('Initialization failed');
         updateUI(false);
         connectBtn.textContent = 'Connect';
     }
@@ -107,21 +107,21 @@ function handleSendMessage() {
         if (typeof payload !== 'object' || payload === null) {
             throw new Error("Payload must be a JSON object.");
         }
-    } catch (error) {
-        log("Error parsing message payload JSON:", error.message);
+    } catch (_) {
+        log('Message payload validation failed');
         return;
     }
 
-    log(`Sending message to ${targetId}...`, payload);
+    log("Sending message...");
     sendBtn.disabled = true;
     sendBtn.textContent = 'Sending...';
 
     im.send(targetId, WKIMChannelType.Person, payload) // Assuming Person type for simplicity
         .then(ack => {
-            log("Message sent successfully. Ack:", ack);
+            log(`Message sent successfully (sequence: ${ack.messageSeq})`);
         })
-        .catch(error => {
-            log("Error sending message:", error);
+        .catch(() => {
+            log('Message send failed');
         })
         .finally(() => {
              sendBtn.disabled = false;
@@ -132,30 +132,31 @@ function handleSendMessage() {
 function setupEventListeners() {
     if (!im) return;
 
-    im.on(WKIMEvent.Connect, (result) => {
-        log("Event: Connected!", result);
+    im.on(WKIMEvent.Connect, () => {
+        log("Event: Connected!");
         updateUI(true);
         connectBtn.textContent = 'Connect'; // Reset button text
     });
 
     im.on(WKIMEvent.Disconnect, (reason) => {
-        log("Event: Disconnected.", reason);
+        log(`Event: Disconnected (code: ${reason?.code ?? 'unknown'})`);
         updateUI(false);
         connectBtn.textContent = 'Connect'; // Reset button text
     });
 
     im.on(WKIMEvent.Message, (message) => {
-        log("Event: Message Received", message);
+        log(`Event: Message received (sequence: ${message.messageSeq}, channelType: ${message.channelType})`);
+        // Render message.payload in the chat UI; do not write it to production logs.
     });
 
-    im.on(WKIMEvent.Error, (error) => {
-        log("Event: Error Occurred", error.message || error);
+    im.on(WKIMEvent.Error, () => {
+        log('Event: SDK operation failed');
         // Optionally update UI based on error type (e.g., if it forces disconnect)
     });
 
-     // Example of adding a second listener for the same event
+    // Example of adding a second listener for the same event
     im.on(WKIMEvent.Message, (message) => {
-        console.log("Second listener also received message:", message.messageId);
+        console.log(`Second listener received message sequence ${message.messageSeq}`);
         // You can add different logic here
     });
 }
@@ -176,4 +177,4 @@ if (clearLogBtn) {
 
 // Initial UI state
 updateUI(false);
-log("Example loaded. Enter connection details and click Connect."); 
+log("Example loaded. Enter connection details and click Connect.");

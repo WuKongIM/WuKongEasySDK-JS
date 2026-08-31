@@ -110,8 +110,7 @@ const wkim = WKIM.init('ws://localhost:5100', {
 
 // Listen for custom events
 wkim.on(WKIM.Event.CustomEvent, (event) => {
-    console.log('Event Type:', event.type);
-    console.log('Event Data:', event.data);
+    console.log('Custom event received');
     
     // Handle different event types
     switch (event.type) {
@@ -149,16 +148,14 @@ import { EventNotification } from 'easyjssdk';
 
 wkim.on(Event.CustomEvent, (event: EventNotification) => {
     // Full TypeScript support with autocomplete
-    console.log(event.id, event.type, event.timestamp, event.data);
+    routeEventToTrustedUI(event);
 });
 ```
 
 ### 4. Error Handling
 ```javascript
-wkim.on(WKIM.Event.Error, (error) => {
-    if (error.message.includes('event notification')) {
-        console.error('Invalid event received:', error);
-    }
+wkim.on(WKIM.Event.Error, () => {
+    console.error('SDK operation failed');
 });
 ```
 
@@ -218,7 +215,8 @@ const wkim = WKIM.init('ws://your-server:5100', {
 ### Step 3: Listen for Events
 ```javascript
 wkim.on(WKIM.Event.CustomEvent, (event) => {
-    console.log('Event received:', event);
+    console.log('Custom event received');
+    handleEvent(event);
 });
 ```
 
@@ -341,4 +339,3 @@ The Event Protocol has been successfully implemented according to the WuKongIM J
 - ✅ **Tested** - Build successful, interactive test page included
 
 **The Event Protocol is now ready for use in production applications!** 🚀
-

@@ -86,8 +86,8 @@ This document illustrates the flow of event notifications through the EasyJSSDK 
 │  ┌────────────────────────────────────────────────────────────┐   │
 │  │  Event Handler Callback                                     │   │
 │  │  (event: EventNotification) => {                           │   │
-│  │    console.log(event.type);                                │   │
-│  │    console.log(event.data);                                │   │
+│  │    console.log('Custom event received');                   │   │
+│  │    routeEventToTrustedUI(event);                           │   │
 │  │                                                             │   │
 │  │    switch (event.type) {                                   │   │
 │  │      case 'user.status.changed':                           │   │
@@ -149,7 +149,7 @@ This document illustrates the flow of event notifications through the EasyJSSDK 
 │  │  Error Handler                                              │   │
 │  │  (error) => {                                              │   │
 │  │    if (error.message.includes('event notification')) {    │   │
-│  │      console.error('Invalid event:', error);              │   │
+│  │      console.error('Invalid event');                       │   │
 │  │      // Handle error appropriately                        │   │
 │  │    }                                                        │   │
 │  │  }                                                          │   │
@@ -256,15 +256,15 @@ wkim.on(WKIM.Event.CustomEvent, (event) => {
     if (handler) {
         try {
             handler(event.data);
-        } catch (error) {
-            console.error('Error handling event:', error);
+        } catch (_) {
+            console.error('Event handling failed');
         }
     }
 });
 
 // 4. Register error handler
-wkim.on(WKIM.Event.Error, (error) => {
-    console.error('SDK Error:', error);
+wkim.on(WKIM.Event.Error, () => {
+    console.error('SDK operation failed');
 });
 
 // 5. Connect
@@ -310,4 +310,3 @@ The Event Protocol implementation provides:
 6. **Validation** - Required fields are validated before emission
 
 This architecture ensures reliable, type-safe event handling while maintaining simplicity for developers.
-

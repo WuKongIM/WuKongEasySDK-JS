@@ -385,19 +385,19 @@
                 disconnectBtn.disabled = true;
             });
 
-            wkim.on(WKIM.Event.Error, (error) => {
-                addLog(`Error: ${error.message}`, 'error');
+            wkim.on(WKIM.Event.Error, () => {
+                addLog('SDK operation failed', 'error');
             });
 
             wkim.on(WKIM.Event.CustomEvent, (event) => {
-                addLog(`Event received: ${event.type}`, 'success');
+                addLog('Custom event received', 'success');
                 addEvent(event);
             });
 
             // Connect
-            wkim.connect().catch((error) => {
+            wkim.connect().catch(() => {
                 updateStatus('disconnected', 'Connection Failed');
-                addLog(`Connection failed: ${error.message}`, 'error');
+                addLog('Connection failed', 'error');
             });
         });
 

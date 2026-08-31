@@ -20,7 +20,7 @@ const wkim = WKIM.init('ws://localhost:5100', {
 
 // Listen for custom events
 wkim.on(WKIM.Event.CustomEvent, (event) => {
-    console.log('Event received:', event);
+    console.log('Custom event received');
     // event = {
     //   id: "event-uuid",
     //   type: "user.status.changed",
@@ -52,7 +52,7 @@ Every event notification contains:
 wkim.on(WKIM.Event.CustomEvent, (event) => {
     if (event.type === 'user.status.changed') {
         const { userId, status } = event.data;
-        console.log(`User ${userId} is now ${status}`);
+        updateUserStatus(userId, status);
     }
 });
 ```
@@ -62,7 +62,7 @@ wkim.on(WKIM.Event.CustomEvent, (event) => {
 wkim.on(WKIM.Event.CustomEvent, (event) => {
     if (event.type === 'channel.updated') {
         const { channelId, updateType, newValue } = event.data;
-        console.log(`Channel ${channelId} ${updateType} updated to ${newValue}`);
+        updateChannelInUI(channelId, updateType, newValue);
     }
 });
 ```
@@ -112,22 +112,18 @@ const wkim = WKIM.init('ws://localhost:5100', {
 // Event handler map
 const eventHandlers = {
     'user.status.changed': (data) => {
-        console.log('User status:', data);
         updateUserStatus(data.userId, data.status);
     },
     
     'channel.updated': (data) => {
-        console.log('Channel updated:', data);
         refreshChannel(data.channelId);
     },
     
     'system.announcement': (data) => {
-        console.log('Announcement:', data);
         showNotification(data.message, data.severity);
     },
     
     'notification.received': (data) => {
-        console.log('Notification:', data);
         if (Notification.permission === 'granted') {
             new Notification(data.title, { body: data.body });
         }
@@ -136,17 +132,17 @@ const eventHandlers = {
 
 // Register event listener
 wkim.on(WKIM.Event.CustomEvent, (event) => {
-    console.log('Event received:', event.type);
+    console.log('Custom event received');
     
     const handler = eventHandlers[event.type];
     if (handler) {
         try {
             handler(event.data);
-        } catch (error) {
-            console.error('Error handling event:', error);
+        } catch (_) {
+            console.error('Event handling failed');
         }
     } else {
-        console.log('Unhandled event type:', event.type);
+        console.log('Unhandled custom event');
     }
 });
 
@@ -159,14 +155,14 @@ wkim.on(WKIM.Event.Disconnect, () => {
     console.log('Disconnected from server');
 });
 
-wkim.on(WKIM.Event.Error, (error) => {
-    console.error('SDK Error:', error);
+wkim.on(WKIM.Event.Error, () => {
+    console.error('SDK operation failed');
 });
 
 // Connect
 wkim.connect()
     .then(() => console.log('Ready to receive events'))
-    .catch((error) => console.error('Connection failed:', error));
+    .catch(() => console.error('Connection failed'));
 ```
 
 ## Testing
@@ -191,7 +187,7 @@ const mockEvent = {
 };
 
 // Your event handler will process this
-console.log('Mock event:', mockEvent);
+handleEvent(mockEvent);
 ```
 
 ## Best Practices
@@ -215,8 +211,8 @@ wkim.on(WKIM.Event.CustomEvent, (event) => {
 wkim.on(WKIM.Event.CustomEvent, (event) => {
     try {
         handleEvent(event);
-    } catch (error) {
-        console.error('Error handling event:', error);
+    } catch (_) {
+        console.error('Event handling failed');
     }
 });
 ```
@@ -254,10 +250,8 @@ const wkim = WKIM.init('ws://localhost:5100', {
 });
 
 wkim.on(Event.CustomEvent, (event: EventNotification) => {
-    console.log(event.id);        // string
-    console.log(event.type);      // string
-    console.log(event.timestamp); // number
-    console.log(event.data);      // any
+    console.log('Custom event received');
+    routeEventToTrustedUI(event);
 });
 ```
 
@@ -273,14 +267,15 @@ console.log('Connected:', wkim.isConnected);
 2. Verify event listener is registered:
 ```javascript
 wkim.on(WKIM.Event.CustomEvent, (event) => {
-    console.log('Event listener called:', event);
+    console.log('Custom event received');
+    handleEvent(event);
 });
 ```
 
 3. Check for errors:
 ```javascript
-wkim.on(WKIM.Event.Error, (error) => {
-    console.error('SDK Error:', error);
+wkim.on(WKIM.Event.Error, () => {
+    console.error('SDK operation failed');
 });
 ```
 
@@ -289,10 +284,8 @@ wkim.on(WKIM.Event.Error, (error) => {
 The SDK validates event notifications and emits errors for invalid data:
 
 ```javascript
-wkim.on(WKIM.Event.Error, (error) => {
-    if (error.message.includes('event notification')) {
-        console.error('Invalid event received:', error);
-    }
+wkim.on(WKIM.Event.Error, () => {
+    console.error('SDK operation failed');
 });
 ```
 

@@ -83,7 +83,7 @@ private handleEventNotification(params: any): void {
 
         // Validate required fields
         if (!eventData.id || !eventData.type || !eventData.timestamp || eventData.data === undefined) {
-            console.error('Invalid event notification: missing required fields', params);
+            this.logger.error('Invalid event notification: missing required fields');
             this.emit(Event.Error, new Error('Invalid event notification: missing required fields'));
             return;
         }
@@ -94,16 +94,16 @@ private handleEventNotification(params: any): void {
                 eventData.data = JSON.parse(eventData.data);
             } catch (e) {
                 // Keep as string if not valid JSON
-                console.debug('Event data is not JSON, keeping as string');
+                this.logger.debug('Event data is not JSON; keeping it as a string');
             }
         }
 
-        console.log(`Event notification received: type=${eventData.type}, id=${eventData.id}`);
+        this.logger.debug('Event notification received');
         
         // Emit the custom event to registered listeners
         this.emit(Event.CustomEvent, eventData);
     } catch (error) {
-        console.error('Error handling event notification:', error);
+        this.logger.error('Failed to handle event notification');
         this.emit(Event.Error, new Error(`Failed to handle event notification: ${error}`));
     }
 }
@@ -117,7 +117,7 @@ Updated the `handleNotification` method to process 'event' notifications:
 
 ```typescript
 private handleNotification(notification: JsonRpcNotification): void {
-    console.debug(`<-- Handling notification (${notification.method}):`, notification.params);
+    this.logger.debug('Handling notification');
     switch (notification.method) {
         case 'recv':
             // ... existing code
@@ -132,7 +132,7 @@ private handleNotification(notification: JsonRpcNotification): void {
             this.handleEventNotification(notification.params);
             break;
         default:
-            console.warn(`Received unhandled notification method: ${notification.method}`);
+            this.logger.warn('Received unhandled notification method');
     }
 }
 ```
@@ -238,10 +238,8 @@ const wkim = WKIM.init('ws://localhost:5100', {
 
 // Listen for custom events
 wkim.on(WKIM.Event.CustomEvent, (event) => {
-    console.log('Event ID:', event.id);
-    console.log('Event Type:', event.type);
-    console.log('Event Timestamp:', event.timestamp);
-    console.log('Event Data:', event.data);
+    console.log('Custom event received');
+    routeEventToTrustedUI(event);
     
     // Handle specific event types
     switch (event.type) {
@@ -317,4 +315,3 @@ The Event Protocol has been successfully implemented according to the WuKongIM J
 - ✅ Backward compatibility
 
 The Event Protocol is now ready for use in production applications.
-
