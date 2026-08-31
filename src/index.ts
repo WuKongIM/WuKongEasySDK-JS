@@ -766,7 +766,7 @@ export class WKIM {
     private auth: AuthOptions;
     private readonly logger: SDKLogger;
     public isConnected: boolean = false;
-    private connectionPromise: ConnectionAttempt | null = null;
+    private connectionAttempt: ConnectionAttempt | null = null;
     /** Monotonically identifies the transport allowed to mutate connection state. */
     private connectionGeneration: number = 0;
     private pingInterval: NodeJS.Timeout | null = null;
@@ -841,9 +841,9 @@ export class WKIM {
                 // If already connected, resolve immediately. If connecting, wait for existing promise.
                 if (this.isConnected) {
                     resolve();
-                } else if (this.connectionPromise) {
-                    this.connectionPromise.resolve = resolve; // Chain the promises
-                    this.connectionPromise.reject = reject;
+                } else if (this.connectionAttempt) {
+                    this.connectionAttempt.resolve = resolve; // Chain the promises
+                    this.connectionAttempt.reject = reject;
                 } else {
                      reject(new Error("Already connecting, but no connection promise found."));
                 }
@@ -855,7 +855,7 @@ export class WKIM {
 
             const generation = ++this.connectionGeneration;
             const attempt: ConnectionAttempt = { generation, resolve, reject };
-            this.connectionPromise = attempt;
+            this.connectionAttempt = attempt;
 
             try {
                 this.logger.debug(`Connecting WebSocket (platform: ${getPlatform()})`);
@@ -901,8 +901,8 @@ export class WKIM {
                 if (this.connectionGeneration !== generation) return;
                 this.logger.error("Failed to create WebSocket");
                 this.emit(Event.Error, error);
-                 if (this.connectionPromise === attempt) {
-                     this.connectionPromise = null;
+                 if (this.connectionAttempt === attempt) {
+                     this.connectionAttempt = null;
                      attempt.reject(error);
                  }
                 this.cleanupConnection();
@@ -1072,8 +1072,8 @@ export class WKIM {
 
                 this.startPing(socket, generation);
                 this.emit(Event.Connect, result);
-                 if (this.connectionPromise === attempt) {
-                    this.connectionPromise = null;
+                 if (this.connectionAttempt === attempt) {
+                    this.connectionAttempt = null;
                     attempt.resolve();
                 }
             })
@@ -1081,8 +1081,8 @@ export class WKIM {
                 if (!this.isCurrentConnection(socket, generation)) return;
                 this.logger.error("Authentication failed");
                 this.emit(Event.Error, new Error(`Authentication failed: ${error.message || JSON.stringify(error)}`));
-                 if (this.connectionPromise === attempt) {
-                    this.connectionPromise = null;
+                 if (this.connectionAttempt === attempt) {
+                    this.connectionAttempt = null;
                     attempt.reject(error);
                 }
                 // Don't start reconnection on auth failure, it's a permanent error.
@@ -1393,14 +1393,14 @@ export class WKIM {
         this.logger.debug("Cleaning up connection resources");
         const socket = this.ws;
         const pendingRequests = Array.from(this.pendingRequests.values());
-        const connectionAttempt = this.connectionPromise;
+        const activeAttempt = this.connectionAttempt;
 
         // Invalidate and detach shared state before rejecting promises. Their
         // continuations may start a replacement connection synchronously.
         this.connectionGeneration++;
         this.isConnected = false;
         this.ws = null;
-        this.connectionPromise = null;
+        this.connectionAttempt = null;
         this.pendingRequests.clear();
         this.stopPing();
 
@@ -1416,8 +1416,8 @@ export class WKIM {
             pending.reject(new Error("Connection closed"));
         });
 
-         if (connectionAttempt && !this.isReconnecting) {
-             connectionAttempt.reject(connectionError);
+         if (activeAttempt) {
+             activeAttempt.reject(connectionError);
          }
         // Do NOT clear eventListeners here, user might want to reconnect.
     }

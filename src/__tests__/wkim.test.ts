@@ -915,6 +915,33 @@ describe('Reconnection', () => {
 
     wkim.destroy();
   });
+
+  it('continues reconnecting when a retry closes before authentication', async () => {
+    const { wkim, ws } = await createConnectedInstance();
+    const reconnectHandler = vi.fn();
+    wkim.on(Event.Reconnecting, reconnectHandler);
+    vi.useFakeTimers();
+
+    ws.simulateClose(1006, 'Initial connection lost');
+    expect(reconnectHandler).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ attempt: 1, delay: 1000 }),
+    );
+
+    await vi.advanceTimersByTimeAsync(1000);
+    const retrySocket = getInstances()[getInstances().length - 1];
+    expect(retrySocket).not.toBe(ws);
+
+    retrySocket.simulateClose(1006, 'Retry failed before authentication');
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(reconnectHandler).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ attempt: 2, delay: 2000 }),
+    );
+
+    wkim.destroy();
+  });
 });
 
 // ===== Cleanup Tests =====
