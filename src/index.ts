@@ -1296,7 +1296,10 @@ export class WKIM {
             };
 
             // Validate required fields
-            if (!eventData.id || !eventData.type) {
+            if (!eventData.id || !eventData.type ||
+                typeof eventData.timestamp !== 'number' ||
+                !Number.isFinite(eventData.timestamp) ||
+                eventData.data === undefined) {
                 this.logger.error('Invalid event notification: missing required fields');
                 this.emit(Event.Error, new Error('Invalid event notification: missing required fields'));
                 return;

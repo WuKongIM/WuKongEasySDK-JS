@@ -804,6 +804,30 @@ describe('Message handling', () => {
     wkim.destroy();
   });
 
+  it('rejects event notifications missing timestamp or data', async () => {
+    const { wkim, ws } = await createConnectedInstance();
+    const eventHandler = vi.fn();
+    const errorHandler = vi.fn();
+    wkim.on(Event.CustomEvent, eventHandler);
+    wkim.on(Event.Error, errorHandler);
+
+    ws.simulateMessage(JSON.stringify({
+      method: 'event',
+      params: { id: 'evt-missing-time', type: 'user.status', data: 'online' },
+    }));
+    ws.simulateMessage(JSON.stringify({
+      method: 'event',
+      params: { id: 'evt-missing-data', type: 'user.status', timestamp: Date.now() },
+    }));
+
+    expect(eventHandler).not.toHaveBeenCalled();
+    expect(errorHandler).toHaveBeenCalledTimes(2);
+    expect(errorHandler).toHaveBeenCalledWith(
+      expect.objectContaining({ message: expect.stringContaining('missing required fields') })
+    );
+    wkim.destroy();
+  });
+
   it('disconnect notification from server triggers disconnect', async () => {
     const { wkim, ws } = await createConnectedInstance();
     const disconnectHandler = vi.fn();
