@@ -10,9 +10,6 @@
 npm install easyjssdk
 ```
 
-> 下文的日志控制目前属于 **Unreleased**：代码已在 `main`，会随下一 npm
-> 版本发布；`easyjssdk@2.0.2` 尚不包含 `debugLogging`。
-
 ## 平台支持
 
 | 平台 | 状态 | 说明 |
