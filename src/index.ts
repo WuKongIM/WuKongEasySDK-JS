@@ -98,6 +98,32 @@ const WS_OPEN = 1;
 const WS_CLOSING = 2;
 const WS_CLOSED = 3;
 
+interface SDKLogger {
+    debug(message: string): void;
+    warn(message: string): void;
+    error(message: string): void;
+}
+
+const silentLogger: SDKLogger = {
+    debug: () => undefined,
+    warn: () => undefined,
+    error: () => undefined,
+};
+
+function createLogger(enabled: boolean): SDKLogger {
+    if (!enabled) {
+        return silentLogger;
+    }
+
+    // Log operational metadata only. Tokens, payloads, raw frames, server
+    // responses, and platform error objects must never cross this boundary.
+    return {
+        debug: (message) => console.debug(`[WKIM] ${message}`),
+        warn: (message) => console.warn(`[WKIM] ${message}`),
+        error: (message) => console.error(`[WKIM] ${message}`),
+    };
+}
+
 // --- Platform Type Enum ---
 enum PlatformType {
     Browser = 'browser',
@@ -117,7 +143,7 @@ class WeChatWebSocketAdapter implements IWebSocketAdapter {
     onerror: ((event: any) => void) | null = null;
     onclose: ((event: { code: number; reason: string }) => void) | null = null;
 
-    constructor(url: string) {
+    constructor(url: string, private readonly logger: SDKLogger) {
         if (typeof wx === 'undefined') {
             throw new Error('WeChat Mini Program environment not detected');
         }
@@ -125,10 +151,10 @@ class WeChatWebSocketAdapter implements IWebSocketAdapter {
         this.socketTask = wx.connectSocket({
             url: url,
             success: () => {
-                console.log('WeChat WebSocket connecting...');
+                this.logger.debug('WeChat WebSocket connecting');
             },
             fail: (err) => {
-                console.error('WeChat WebSocket connection failed:', err);
+                this.logger.error('WeChat WebSocket connection failed');
                 this._readyState = WS_CLOSED;
                 if (this.onerror) {
                     this.onerror({ message: err.errMsg || 'Connection failed' });
@@ -153,7 +179,7 @@ class WeChatWebSocketAdapter implements IWebSocketAdapter {
         });
 
         this.socketTask.onError((res) => {
-            console.error('WeChat WebSocket error:', res);
+            this.logger.error('WeChat WebSocket transport error');
             if (this.onerror) {
                 this.onerror({ message: res.errMsg || 'WebSocket error' });
             }
@@ -178,7 +204,7 @@ class WeChatWebSocketAdapter implements IWebSocketAdapter {
         this.socketTask.send({
             data: data,
             fail: (err) => {
-                console.error('WeChat WebSocket send failed:', err);
+                this.logger.error('WeChat WebSocket send failed');
                 if (this.onerror) {
                     this.onerror({ message: 'Send failed' });
                 }
@@ -195,8 +221,8 @@ class WeChatWebSocketAdapter implements IWebSocketAdapter {
             this.socketTask.close({
                 code: code || 1000,
                 reason: reason || '',
-                fail: (err) => {
-                    console.error('WeChat WebSocket close failed:', err);
+                fail: () => {
+                    this.logger.error('WeChat WebSocket close failed');
                 }
             });
         }
@@ -216,7 +242,7 @@ class AlipayWebSocketAdapter implements IWebSocketAdapter {
     onerror: ((event: any) => void) | null = null;
     onclose: ((event: { code: number; reason: string }) => void) | null = null;
 
-    constructor(url: string) {
+    constructor(url: string, private readonly logger: SDKLogger) {
         if (typeof my === 'undefined') {
             throw new Error('Alipay Mini Program environment not detected');
         }
@@ -239,7 +265,7 @@ class AlipayWebSocketAdapter implements IWebSocketAdapter {
         };
 
         this.boundOnError = (res: any) => {
-            console.error('Alipay WebSocket error:', res);
+            this.logger.error('Alipay WebSocket transport error');
             if (this.onerror) {
                 this.onerror({ message: res.errorMessage || 'WebSocket error' });
             }
@@ -263,10 +289,10 @@ class AlipayWebSocketAdapter implements IWebSocketAdapter {
         my.connectSocket({
             url: url,
             success: () => {
-                console.log('Alipay WebSocket connecting...');
+                this.logger.debug('Alipay WebSocket connecting');
             },
             fail: (err) => {
-                console.error('Alipay WebSocket connection failed:', err);
+                this.logger.error('Alipay WebSocket connection failed');
                 this._readyState = WS_CLOSED;
                 this.cleanup();
                 if (this.onerror) {
@@ -290,7 +316,7 @@ class AlipayWebSocketAdapter implements IWebSocketAdapter {
         my.sendSocketMessage({
             data: data,
             fail: (err) => {
-                console.error('Alipay WebSocket send failed:', err);
+                this.logger.error('Alipay WebSocket send failed');
                 if (this.onerror) {
                     this.onerror({ message: 'Send failed' });
                 }
@@ -309,8 +335,8 @@ class AlipayWebSocketAdapter implements IWebSocketAdapter {
         my.closeSocket({
             code: code || 1000,
             reason: reason || '',
-            fail: (err) => {
-                console.error('Alipay WebSocket close failed:', err);
+            fail: () => {
+                this.logger.error('Alipay WebSocket close failed');
             }
         });
     }
@@ -339,7 +365,7 @@ class UniAppWebSocketAdapter implements IWebSocketAdapter {
     onerror: ((event: any) => void) | null = null;
     onclose: ((event: { code: number; reason: string }) => void) | null = null;
 
-    constructor(url: string) {
+    constructor(url: string, private readonly logger: SDKLogger) {
         if (typeof uni === 'undefined') {
             throw new Error('UniApp environment not detected');
         }
@@ -347,10 +373,10 @@ class UniAppWebSocketAdapter implements IWebSocketAdapter {
         this.socketTask = uni.connectSocket({
             url: url,
             success: () => {
-                console.log('UniApp WebSocket connecting...');
+                this.logger.debug('UniApp WebSocket connecting');
             },
             fail: (err) => {
-                console.error('UniApp WebSocket connection failed:', err);
+                this.logger.error('UniApp WebSocket connection failed');
                 this._readyState = WS_CLOSED;
                 if (this.onerror) {
                     this.onerror({ message: err.errMsg || 'Connection failed' });
@@ -375,7 +401,7 @@ class UniAppWebSocketAdapter implements IWebSocketAdapter {
         });
 
         this.socketTask.onError((res) => {
-            console.error('UniApp WebSocket error:', res);
+            this.logger.error('UniApp WebSocket transport error');
             if (this.onerror) {
                 this.onerror({ message: res.errMsg || 'WebSocket error' });
             }
@@ -400,7 +426,7 @@ class UniAppWebSocketAdapter implements IWebSocketAdapter {
         this.socketTask.send({
             data: data,
             fail: (err) => {
-                console.error('UniApp WebSocket send failed:', err);
+                this.logger.error('UniApp WebSocket send failed');
                 if (this.onerror) {
                     this.onerror({ message: 'Send failed' });
                 }
@@ -417,8 +443,8 @@ class UniAppWebSocketAdapter implements IWebSocketAdapter {
             this.socketTask.close({
                 code: code || 1000,
                 reason: reason || '',
-                fail: (err) => {
-                    console.error('UniApp WebSocket close failed:', err);
+                fail: () => {
+                    this.logger.error('UniApp WebSocket close failed');
                 }
             });
         }
@@ -457,14 +483,14 @@ function getPlatform(): PlatformType {
 }
 
 // Factory function to create platform-appropriate WebSocket
-function createWebSocket(url: string): IWebSocketAdapter {
+function createWebSocket(url: string, logger: SDKLogger): IWebSocketAdapter {
     switch (getPlatform()) {
         case PlatformType.UniApp:
-            return new UniAppWebSocketAdapter(url);
+            return new UniAppWebSocketAdapter(url, logger);
         case PlatformType.WeChat:
-            return new WeChatWebSocketAdapter(url);
+            return new WeChatWebSocketAdapter(url, logger);
         case PlatformType.Alipay:
-            return new AlipayWebSocketAdapter(url);
+            return new AlipayWebSocketAdapter(url, logger);
         case PlatformType.Browser:
             return new WebSocket(url) as unknown as IWebSocketAdapter;
         case PlatformType.NodeJS:
@@ -608,6 +634,14 @@ interface AuthOptions {
     deviceFlag?: DeviceFlag | number; // 0:APP, 1:WEB, 2:PC/Desktop
 }
 
+/** SDK initialization options. Debug logging is disabled by default. */
+export interface WKIMOptions {
+    /** Register the instance in the global instance slot unless set to false. */
+    singleton?: boolean;
+    /** Emit sanitized operational metadata. Tokens, payloads, and raw frames are never logged. */
+    debugLogging?: boolean;
+}
+
 interface ConnectResult {
     serverKey: string;
     salt: string;
@@ -717,6 +751,7 @@ export class WKIM {
     private ws: IWebSocketAdapter | null = null;
     private url: string;
     private auth: AuthOptions;
+    private readonly logger: SDKLogger;
     public isConnected: boolean = false;
     private connectionPromise: { resolve: (value: void | PromiseLike<void>) => void; reject: (reason?: any) => void; } | null = null;
     private pingInterval: NodeJS.Timeout | null = null;
@@ -736,9 +771,10 @@ export class WKIM {
     private sessionId: string;
     private beforeUnloadHandler: (() => void) | null = null;
 
-    private constructor(url: string, auth: AuthOptions) {
+    private constructor(url: string, auth: AuthOptions, options: WKIMOptions) {
         this.url = url;
         this.auth = auth || {};
+        this.logger = createLogger(options.debugLogging === true);
         this.sessionId = this.generateUUID(); // Unique session identifier
 
         // Ensure unique deviceId for each session
@@ -756,21 +792,20 @@ export class WKIM {
      * Initializes the WKIM instance.
      * @param url WebSocket server URL (e.g., "ws://localhost:5100")
      * @param auth Authentication options { uid, token, ... }
-     * @param options Configuration options { singleton: boolean }
+     * @param options Configuration options. Debug logging is disabled by default.
      * @returns A WKIM instance
      */
-    public static init(url: string, auth: AuthOptions, options: { singleton?: boolean } = {}): WKIM {
+    public static init(url: string, auth: AuthOptions, options: WKIMOptions = {}): WKIM {
         if (!url || !auth || !auth.uid || !auth.token) {
             throw new Error("URL, uid, and token are required for initialization.");
         }
 
         // If singleton mode is enabled and there's an existing instance, disconnect it first
         if (options.singleton && WKIM.globalInstance) {
-            console.log("Destroying previous global instance...");
             WKIM.globalInstance.destroy();
         }
 
-        const instance = new WKIM(url, auth);
+        const instance = new WKIM(url, auth, options);
 
         if (options.singleton !== false) {
             WKIM.globalInstance = instance;
@@ -787,7 +822,7 @@ export class WKIM {
     public connect(): Promise<void> {
         return new Promise((resolve, reject) => {
              if (this.isConnected || this.ws?.readyState === WS_CONNECTING) {
-                console.warn("Connection already established or in progress.");
+                this.logger.warn("Connection already established or in progress");
                 // If already connected, resolve immediately. If connecting, wait for existing promise.
                 if (this.isConnected) {
                     resolve();
@@ -806,11 +841,11 @@ export class WKIM {
             this.connectionPromise = { resolve, reject };
 
             try {
-                console.log(`Connecting to ${this.url}... (Platform: ${getPlatform()})`);
-                this.ws = createWebSocket(this.url);
+                this.logger.debug(`Connecting WebSocket (platform: ${getPlatform()})`);
+                this.ws = createWebSocket(this.url, this.logger);
 
                 this.ws.onopen = () => {
-                    console.log("WebSocket connection opened. Authenticating...");
+                    this.logger.debug("WebSocket connection opened; authenticating");
                     this.sendConnectRequest();
                 };
 
@@ -820,14 +855,14 @@ export class WKIM {
 
                 this.ws.onerror = (event: any) => {
                     const errorMessage = event.message || (event.error ? event.error.message : 'WebSocket error');
-                    console.error("WebSocket error:", errorMessage, event);
+                    this.logger.error("WebSocket transport error");
                     this.emit(Event.Error, event.error || new Error(errorMessage));
                     // The 'onclose' event will be fired next, which will handle cleanup and reconnection logic.
                 };
 
                 this.ws.onclose = (event) => {
                     const wasConnected = this.isConnected;
-                    console.log(`WebSocket connection closed. Code: ${event.code}, Reason: ${event.reason}`);
+                    this.logger.debug(`WebSocket connection closed (code: ${event.code})`);
 
                     if (this.connectionPromise && !this.isConnected) { // Reject connect promise if closed before connect ack
                         this.connectionPromise.reject(new Error(`Connection closed before authentication (Code: ${event.code})`));
@@ -842,7 +877,7 @@ export class WKIM {
                     }
                 };
             } catch (error) {
-                console.error("Failed to create WebSocket:", error);
+                this.logger.error("Failed to create WebSocket");
                 this.emit(Event.Error, error);
                  if (this.connectionPromise) {
                      this.connectionPromise.reject(error);
@@ -857,7 +892,7 @@ export class WKIM {
      * Disconnects from the server.
      */
     public disconnect(): void {
-        console.log("Manual disconnect initiated.");
+        this.logger.debug("Manual disconnect initiated");
         this.manualDisconnect = true;
         this.isReconnecting = false; // Stop any ongoing reconnection attempts
         this.cleanupBeforeUnloadHandler(); // Remove page unload listeners
@@ -869,7 +904,7 @@ export class WKIM {
      * Call this when you no longer need the SDK instance.
      */
     public destroy(): void {
-        console.log("Destroying SDK instance...");
+        this.logger.debug("Destroying SDK instance");
         this.disconnect();
         this.eventListeners.clear();
         this.pendingRequests.clear();
@@ -933,7 +968,7 @@ export class WKIM {
         if (this.eventListeners.has(eventName)) {
             this.eventListeners.get(eventName)?.push(callback);
         } else {
-            console.warn(`Attempted to register listener for unknown event: ${eventName}`);
+            this.logger.warn("Attempted to register listener for an unknown event");
         }
     }
 
@@ -963,7 +998,7 @@ export class WKIM {
                 try {
                     callback(...args);
                 } catch (error) {
-                    console.error(`Error in event listener for ${eventName}:`, error);
+                    this.logger.error("Event listener threw an error");
                 }
             });
         }
@@ -987,7 +1022,7 @@ export class WKIM {
         };
         this.sendRequest<ConnectResult>('connect', params, 5000) // 5s timeout for connect
             .then(result => {
-                console.log("Authentication successful:", result);
+                this.logger.debug("Authentication successful");
                 this.isConnected = true;
 
                 // Reset reconnection state on successful connect
@@ -1003,7 +1038,7 @@ export class WKIM {
                 }
             })
             .catch(error => {
-                console.error("Authentication failed:", error);
+                this.logger.error("Authentication failed");
                 this.emit(Event.Error, new Error(`Authentication failed: ${error.message || JSON.stringify(error)}`));
                  if (this.connectionPromise) {
                     this.connectionPromise.reject(error);
@@ -1036,12 +1071,12 @@ export class WKIM {
             this.pendingRequests.set(requestId, { resolve, reject, timeoutTimer });
 
             try {
-                 console.debug(`--> Sending request (id: ${requestId}):`, JSON.stringify(request));
+                this.logger.debug(`Sending ${method} request (id=present)`);
                 this.ws.send(JSON.stringify(request));
             } catch (error) {
                  clearTimeout(timeoutTimer);
                  this.pendingRequests.delete(requestId);
-                console.error(`Error sending request (id: ${requestId}):`, error);
+                this.logger.error(`Failed to send ${method} request (id=present)`);
                 reject(error);
             }
         });
@@ -1049,7 +1084,7 @@ export class WKIM {
 
      private sendNotification(method: string, params: any): void {
         if (!this.ws || this.ws.readyState !== WS_OPEN) {
-            console.error("Cannot send notification, WebSocket is not open.");
+            this.logger.error("Cannot send notification because WebSocket is not open");
             return;
         }
 
@@ -1057,22 +1092,22 @@ export class WKIM {
             method: method,
             params: params
         };
-         console.debug(`--> Sending notification:`, JSON.stringify(notification));
+        this.logger.debug(`Sending ${method} notification`);
         try {
             this.ws.send(JSON.stringify(notification));
         } catch (error) {
-            console.error(`Error sending notification (${method}):`, error);
+            this.logger.error(`Failed to send ${method} notification`);
             this.emit(Event.Error, new Error(`Failed to send notification ${method}: ${error}`));
         }
     }
 
     private handleMessage(data: any): void {
-         console.debug("<-- Received raw:", data);
+        this.logger.debug("Received WebSocket frame");
         let message: JsonRpcResponse | JsonRpcNotification;
         try {
             message = JSON.parse(data.toString());
         } catch (error) {
-            console.error("Failed to parse incoming message:", error, data);
+            this.logger.error("Failed to parse incoming message");
             this.emit(Event.Error, new Error(`Failed to parse message: ${error}`));
             return;
         }
@@ -1082,12 +1117,12 @@ export class WKIM {
         } else if ('method' in message) { // It's a Notification
             this.handleNotification(message as JsonRpcNotification);
         } else {
-            console.warn("Received unknown message format:", message);
+            this.logger.warn("Received unknown message format");
         }
     }
 
     private handleResponse(response: JsonRpcResponse): void {
-         console.debug(`<-- Handling response (id: ${response.id}):`, response);
+        this.logger.debug("Handling response");
         const pending = this.pendingRequests.get(response.id);
         if (pending) {
             clearTimeout(pending.timeoutTimer);
@@ -1098,12 +1133,12 @@ export class WKIM {
                 pending.resolve(response.result);
             }
         } else {
-            console.warn(`Received response for unknown request ID: ${response.id}`);
+            this.logger.warn("Received response for unknown request ID");
         }
     }
 
     private handleNotification(notification: JsonRpcNotification): void {
-         console.debug(`<-- Handling notification (${notification.method}):`, notification.params);
+        this.logger.debug("Handling notification");
         switch (notification.method) {
             case 'recv':
                 const messageData = notification.params as RecvMessage;
@@ -1122,7 +1157,7 @@ export class WKIM {
                  this.handlePong();
                  break;
             case 'disconnect':
-                 console.warn('Server initiated disconnect:', notification.params);
+                 this.logger.warn('Server initiated disconnect');
                  this.emit(Event.Disconnect, notification.params); // Emit server reason
                  this.handleDisconnect(false, `Server disconnected: ${notification.params?.reason || notification.params?.reasonCode}`); // Close locally
                  break;
@@ -1131,7 +1166,7 @@ export class WKIM {
                  break;
             // Handle other notifications if needed
             default:
-                console.warn(`Received unhandled notification method: ${notification.method}`);
+                this.logger.warn("Received unhandled notification method");
         }
     }
 
@@ -1222,7 +1257,7 @@ export class WKIM {
 
             // Validate required fields
             if (!eventData.id || !eventData.type) {
-                console.error('Invalid event notification: missing required fields', params);
+                this.logger.error('Invalid event notification: missing required fields');
                 this.emit(Event.Error, new Error('Invalid event notification: missing required fields'));
                 return;
             }
@@ -1233,16 +1268,16 @@ export class WKIM {
                     eventData.data = JSON.parse(eventData.data);
                 } catch (e) {
                     // Keep as string if not valid JSON
-                    console.debug('Event data is not JSON, keeping as string');
+                    this.logger.debug('Event data is not JSON; keeping it as a string');
                 }
             }
 
-            console.log(`Event notification received: type=${eventData.type}, id=${eventData.id}`);
+            this.logger.debug('Event notification received');
 
             // Emit the custom event to registered listeners
             this.emit(Event.CustomEvent, eventData);
         } catch (error) {
-            console.error('Error handling event notification:', error);
+            this.logger.error('Failed to handle event notification');
             this.emit(Event.Error, new Error(`Failed to handle event notification: ${error}`));
         }
     }
@@ -1254,7 +1289,7 @@ export class WKIM {
                 this.sendRequest('ping', {}, this.PONG_TIMEOUT_MS)
                     .then(this.handlePong.bind(this)) // Technically pong is a notification, but use req/res for timeout
                     .catch(err => {
-                        console.error("Ping failed or timed out:", err);
+                        this.logger.error("Ping failed or timed out");
                         this.emit(Event.Error, new Error(`Ping timeout: ${err?.message || err}`));
                         // Treat ping timeout as an unhealthy connection: close and reconnect
                         if (!this.manualDisconnect) {
@@ -1266,14 +1301,14 @@ export class WKIM {
                  this.stopPing(); // Stop if WS is not open
             }
         }, this.PING_INTERVAL_MS);
-         console.log(`Ping interval started (${this.PING_INTERVAL_MS}ms).`);
+         this.logger.debug(`Ping interval started (${this.PING_INTERVAL_MS}ms)`);
     }
 
      private stopPing(): void {
         if (this.pingInterval) {
             clearInterval(this.pingInterval);
             this.pingInterval = null;
-             console.log("Ping interval stopped.");
+             this.logger.debug("Ping interval stopped");
         }
          if (this.pingTimeout) {
              clearTimeout(this.pingTimeout);
@@ -1282,12 +1317,11 @@ export class WKIM {
     }
 
      private handlePong(): void {
-         // console.debug("Pong received.");
          // Reset pong timeout if using one (mainly handled by sendRequest timeout now)
      }
 
      private handleDisconnect(graceful: boolean, reason: string): void {
-         console.log(`Handling disconnect. Graceful: ${graceful}, Reason: ${reason}`);
+         this.logger.debug(`Handling disconnect (graceful: ${graceful})`);
         if (this.ws) {
             this.stopPing();
             if (graceful && this.ws.readyState === WS_OPEN) {
@@ -1302,7 +1336,7 @@ export class WKIM {
     }
 
     private cleanupConnection(): void {
-        console.log("Cleaning up connection resources.");
+        this.logger.debug("Cleaning up connection resources");
         this.isConnected = false;
         this.stopPing();
 
@@ -1340,7 +1374,7 @@ export class WKIM {
         // Only setup in browser environment
         if (typeof window !== 'undefined') {
             this.beforeUnloadHandler = () => {
-                console.log('Page unloading, closing WebSocket connection...');
+                this.logger.debug('Page unloading; closing WebSocket connection');
                 this.manualDisconnect = true;
                 this.isReconnecting = false;
                 if (this.ws && this.ws.readyState === WS_OPEN) {
@@ -1372,7 +1406,7 @@ export class WKIM {
 
     private scheduleReconnect(): void {
         if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-            console.error("Max reconnect attempts reached. Giving up.");
+            this.logger.error("Max reconnect attempts reached");
             this.isReconnecting = false;
             this.reconnectAttempts = 0;
             this.emit(Event.Error, new Error("Reconnection failed."));
@@ -1382,13 +1416,13 @@ export class WKIM {
         const delay = this.initialReconnectDelay * Math.pow(2, this.reconnectAttempts);
         this.reconnectAttempts++;
 
-        console.log(`Will attempt to reconnect in ${delay / 1000}s (Attempt ${this.reconnectAttempts}).`);
+        this.logger.debug(`Will reconnect in ${delay / 1000}s (attempt ${this.reconnectAttempts})`);
         this.emit(Event.Reconnecting, { attempt: this.reconnectAttempts, delay });
 
         setTimeout(() => {
             // Check if a manual disconnect happened while waiting
             if (!this.isReconnecting) {
-                console.log("Reconnection aborted.");
+                this.logger.debug("Reconnection aborted");
                 return;
             }
             this.connect().catch(() => {

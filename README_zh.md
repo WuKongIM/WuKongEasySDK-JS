@@ -10,6 +10,9 @@
 npm install easyjssdk
 ```
 
+> 下文的日志控制目前属于 **Unreleased**：代码已在 `main`，会随下一 npm
+> 版本发布；`easyjssdk@2.0.2` 尚不包含 `debugLogging`。
+
 ## 平台支持
 
 | 平台 | 状态 | 说明 |
@@ -47,18 +50,21 @@ const im = WKIM.init("ws://your-wukongim-server.com:5200", {
     token: "your_auth_token",   // 你的认证令牌
     // deviceId: "optional_device_id", // 可选的设备 ID
     deviceFlag: WKIMDeviceFlag.Web // 可选：APP=0、WEB=1、PC=2
+}, {
+    // 可选。默认关闭；开启后也只记录不含敏感数据的运行元信息。
+    debugLogging: false
 });
 
 // 2. 收消息
 im.on(WKIMEvent.Message, (message) => {
-    console.log("收到消息:", message);
-    // 处理收到的消息 (message.payload, message.fromUid 等)
+    renderMessage(message.payload);
+    // 不要把完整消息或 Payload 写入生产日志。
 });
 
 // 2.1 接收自定义事件通知
 im.on(WKIMEvent.CustomEvent, (event) => {
-    console.log("收到事件:", event);
-    // 处理来自服务器的自定义事件
+    handleCustomEvent(event.type, event.data);
+    // 不要把完整事件数据写入生产日志。
     // event = { id, type, timestamp, data }
 });
 
@@ -74,6 +80,10 @@ const messagePayload = { type: 1, content: "来自 EasyJSSDK 的问候!" };
 const sendResult = await im.send(targetUserId, WKIMChannelType.Person, messagePayload);
 // sendResult.reasonCode
 ```
+
+除非显式开启 `debugLogging`，SDK 不会写日志。即使开启，也不会记录认证
+Token、消息 Payload、原始 WebSocket 帧、服务端响应正文或平台错误对象。如需
+获取错误详情，请监听 `WKIMEvent.Error`。
 
 ## 特性
 
@@ -112,9 +122,6 @@ SDK 支持事件协议，可以接收来自服务器的自定义事件通知：
 ```javascript
 // 监听自定义事件
 im.on(WKIMEvent.CustomEvent, (event) => {
-    console.log('事件类型:', event.type);
-    console.log('事件数据:', event.data);
-
     // 处理不同类型的事件
     switch (event.type) {
         case 'user.status.changed':

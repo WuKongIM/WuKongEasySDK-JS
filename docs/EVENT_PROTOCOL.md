@@ -98,7 +98,7 @@ The SDK provides a dedicated event type for custom event notifications:
 
 ```javascript
 wkim.on(WKIM.Event.CustomEvent, (eventNotification) => {
-    console.log('Event received:', eventNotification);
+    console.log('Custom event received');
     
     const { id, type, timestamp, data, header } = eventNotification;
     
@@ -125,8 +125,7 @@ The SDK automatically attempts to parse the `data` field if it's a JSON string:
 
 wkim.on(WKIM.Event.CustomEvent, (event) => {
     // data is already parsed as an object
-    console.log(event.data.userId);  // "123"
-    console.log(event.data.status);  // "online"
+    updateUserStatus(event.data.userId, event.data.status);
 });
 ```
 
@@ -147,7 +146,7 @@ function onEventType(eventType, callback) {
 
 // Usage
 onEventType('user.status.changed', (event) => {
-    console.log('User status changed:', event.data);
+    updateUserStatus(event.data);
 });
 
 onEventType('system.announcement', (event) => {
@@ -279,7 +278,7 @@ wkim.on(WKIM.Event.CustomEvent, (event) => {
     if (handler) {
         handler(event.data);
     } else {
-        console.log(`Unhandled event type: ${event.type}`);
+        console.log('Unhandled custom event');
         // Don't throw errors for unknown event types
     }
 });
@@ -295,7 +294,7 @@ wkim.on(WKIM.Event.CustomEvent, (event) => {
         const { userId, status } = event.data || {};
         
         if (!userId || !status) {
-            console.error('Invalid user status event data:', event.data);
+            console.error('Invalid user status event data');
             return;
         }
         
@@ -314,7 +313,7 @@ const processedEvents = new Set();
 wkim.on(WKIM.Event.CustomEvent, (event) => {
     // Check if already processed
     if (processedEvents.has(event.id)) {
-        console.log('Duplicate event ignored:', event.id);
+        console.log('Duplicate event ignored');
         return;
     }
     
@@ -339,14 +338,9 @@ wkim.on(WKIM.Event.CustomEvent, (event) => {
 The SDK emits error events for invalid event notifications:
 
 ```javascript
-wkim.on(WKIM.Event.Error, (error) => {
-    console.error('SDK Error:', error);
-    
-    // Check if it's an event-related error
-    if (error.message.includes('event notification')) {
-        // Handle event processing errors
-        notifyUser('Failed to process server event');
-    }
+wkim.on(WKIM.Event.Error, () => {
+    console.error('SDK operation failed');
+    notifyUser('Failed to process server event');
 });
 ```
 
@@ -358,10 +352,10 @@ Wrap event handlers in try-catch to prevent crashes:
 wkim.on(WKIM.Event.CustomEvent, (event) => {
     try {
         handleEvent(event);
-    } catch (error) {
-        console.error('Error handling event:', error);
+    } catch (_) {
+        console.error('Event handling failed');
         // Report error to monitoring service
-        reportError(error, { eventType: event.type, eventId: event.id });
+        reportEventFailure({ category: 'custom-event' });
     }
 });
 ```
@@ -374,4 +368,3 @@ See [example/event-example.js](../example/event-example.js) for a complete worki
 
 - [WuKongIM RPC Schema](./wukongim_rpc_schema.json) - Complete protocol specification
 - [Main README](../README.md) - SDK overview and getting started guide
-

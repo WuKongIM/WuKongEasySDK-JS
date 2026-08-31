@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { join } from 'node:path';
 import { MockWebSocket, installMockWebSocket } from './mock-websocket';
 
 // We need to install the mock WebSocket BEFORE importing the SDK,
@@ -115,6 +117,183 @@ describe('WKIM.init()', () => {
     const instance1 = WKIM.init('ws://test:5100', { uid: 'user1', token: 'token1' }, { singleton: false });
     const instance2 = WKIM.init('ws://test:5100', { uid: 'user2', token: 'token2' }, { singleton: false });
     expect(instance1).not.toBe(instance2);
+  });
+});
+
+// ===== Logging Security Tests =====
+
+describe('Logging security', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('keeps CONNECT tokens and SEND/RECV payloads out of console output when debug logging is disabled', async () => {
+    const tokenCanary = 'TOKEN_CANARY_7f8262b4';
+    const outboundCanary = 'OUTBOUND_PAYLOAD_CANARY_90c10dd3';
+    const inboundCanary = 'INBOUND_PAYLOAD_CANARY_42e02c79';
+    const outboundWirePayload = toBase64({ content: outboundCanary });
+    const inboundWirePayload = toBase64({ content: inboundCanary });
+    const captured: string[] = [];
+
+    for (const method of ['debug', 'log', 'warn', 'error'] as const) {
+      vi.spyOn(console, method).mockImplementation((...args: unknown[]) => {
+        captured.push(args.map((arg) => {
+          if (typeof arg === 'string') return arg;
+          try {
+            return JSON.stringify(arg);
+          } catch {
+            return String(arg);
+          }
+        }).join(' '));
+      });
+    }
+
+    const instancesBefore = getInstances().length;
+    const wkim = WKIM.init(
+      'ws://test:5100',
+      { uid: 'security-user', token: tokenCanary },
+      { singleton: false, debugLogging: false },
+    );
+    const connectPromise = wkim.connect();
+
+    await vi.waitFor(() => expect(getInstances()[instancesBefore]).toBeDefined());
+    const ws = getInstances()[instancesBefore];
+    ws.simulateOpen();
+    await vi.waitFor(() => expect(ws.findSentMessage('connect')).toBeTruthy());
+
+    const connectRequest = ws.findSentMessage('connect');
+    expect(JSON.stringify(connectRequest)).toContain(tokenCanary);
+    ws.simulateAuthSuccess();
+    await connectPromise;
+
+    const sendPromise = wkim.send('recipient', ChannelType.Person, { content: outboundCanary });
+    await vi.waitFor(() => expect(ws.findSentMessage('send')).toBeTruthy());
+    const sendRequest = ws.findSentMessage('send');
+    expect(sendRequest.params.payload).toBe(outboundWirePayload);
+    ws.simulateMessage(JSON.stringify({
+      id: sendRequest.id,
+      result: { messageId: 'sent-1', messageSeq: 1, reasonCode: 1 },
+    }));
+    await sendPromise;
+
+    ws.simulateMessage(JSON.stringify({
+      method: 'recv',
+      params: {
+        header: {},
+        messageId: 'recv-1',
+        messageSeq: 2,
+        timestamp: Date.now(),
+        channelId: 'security-user',
+        channelType: ChannelType.Person,
+        fromUid: 'recipient',
+        payload: inboundWirePayload,
+      },
+    }));
+    ws.simulateMessage(JSON.stringify({ unexpected: inboundCanary }));
+    ws.simulateMessage(`malformed-${outboundCanary}`);
+    ws.simulateError(`transport-${tokenCanary}`);
+    wkim.destroy();
+
+    const transcript = captured.join('\n');
+    expect(transcript).not.toContain(tokenCanary);
+    expect(transcript).not.toContain(outboundCanary);
+    expect(transcript).not.toContain(outboundWirePayload);
+    expect(transcript).not.toContain(inboundCanary);
+    expect(transcript).not.toContain(inboundWirePayload);
+    expect(captured).toEqual([]);
+  });
+
+  it('emits only sanitized operational metadata when debug logging is enabled', async () => {
+    const tokenCanary = 'TOKEN_CANARY_DEBUG_2add165d';
+    const payloadCanary = 'PAYLOAD_CANARY_DEBUG_07928f3f';
+    const wirePayload = toBase64({ content: payloadCanary });
+    const captured: string[] = [];
+
+    for (const method of ['debug', 'log', 'warn', 'error'] as const) {
+      vi.spyOn(console, method).mockImplementation((...args: unknown[]) => {
+        captured.push(args.map((arg) => typeof arg === 'string' ? arg : JSON.stringify(arg)).join(' '));
+      });
+    }
+
+    const instancesBefore = getInstances().length;
+    const wkim = WKIM.init(
+      'ws://test:5100',
+      { uid: 'debug-user', token: tokenCanary },
+      { singleton: false, debugLogging: true },
+    );
+    const connectPromise = wkim.connect();
+
+    await vi.waitFor(() => expect(getInstances()[instancesBefore]).toBeDefined());
+    const ws = getInstances()[instancesBefore];
+    ws.simulateOpen();
+    await vi.waitFor(() => expect(ws.findSentMessage('connect')).toBeTruthy());
+    const connectRequest = ws.findSentMessage('connect');
+    ws.simulateAuthSuccess();
+    await connectPromise;
+
+    const sendPromise = wkim.send('recipient', ChannelType.Person, { content: payloadCanary });
+    await vi.waitFor(() => expect(ws.findSentMessage('send')).toBeTruthy());
+    const sendRequest = ws.findSentMessage('send');
+    ws.simulateMessage(JSON.stringify({
+      id: sendRequest.id,
+      result: { messageId: 'sent-2', messageSeq: 3, reasonCode: 1 },
+    }));
+    await sendPromise;
+
+    ws.simulateMessage(JSON.stringify({ unexpected: payloadCanary }));
+    ws.simulateMessage(JSON.stringify({ id: payloadCanary, result: {} }));
+    ws.simulateMessage(`malformed-${payloadCanary}`);
+    ws.simulateError(`transport-${tokenCanary}`);
+
+    let failedRequestId = '';
+    vi.spyOn(ws, 'send').mockImplementation((data: string) => {
+      const request = JSON.parse(data);
+      failedRequestId = request.id;
+      throw new Error('forced transport send failure');
+    });
+    await expect(
+      wkim.send('recipient', ChannelType.Person, { content: payloadCanary }),
+    ).rejects.toThrow('forced transport send failure');
+
+    wkim.destroy();
+
+    const transcript = captured.join('\n');
+    expect(transcript).toContain('[WKIM]');
+    expect(transcript).not.toContain(tokenCanary);
+    expect(transcript).not.toContain(payloadCanary);
+    expect(transcript).not.toContain(wirePayload);
+    expect(transcript).not.toContain(connectRequest.id);
+    expect(transcript).not.toContain(sendRequest.id);
+    expect(failedRequestId).not.toBe('');
+    expect(transcript).not.toContain(failedRequestId);
+    expect(transcript).toContain('Sending connect request (id=present)');
+    expect(transcript).toContain('Sending send request (id=present)');
+    expect(transcript).toContain('Failed to send send request (id=present)');
+  });
+
+  it('shipped examples and documentation do not log raw event or error values', () => {
+    const collectFiles = (path: string): string[] => {
+      if (!statSync(path).isDirectory()) return [path];
+      return readdirSync(path).flatMap((entry) => collectFiles(join(path, entry)));
+    };
+    const files = [
+      ...collectFiles('example'),
+      ...collectFiles('docs'),
+      'IMPLEMENTATION_SUMMARY.md',
+    ].filter((path) => /\.(?:js|html|md)$/.test(path));
+    const unsafeLogArguments = [
+      /(?:console\.(?:log|debug|warn|error)|addLog)\s*\(\s*(?:error|event|eventNotification|params|data|mockEvent)\b/,
+      /(?:console\.(?:log|debug|warn|error)|addLog)\s*\([^\n]*,\s*(?:error|event|eventNotification|params|data|userId|channelId|messageId)\b/,
+      /(?:console\.(?:log|debug|warn|error)|addLog)\s*\([^\n]*\$\{\s*(?:error|event|eventNotification|params|data|userId|channelId|messageId)\b/,
+      /(?:console\.(?:log|debug|warn|error)|addLog)\s*\([^\n]*(?:error\.message|event\.data|event\.id|eventNotification\.data|eventNotification\.id)/,
+    ];
+
+    for (const path of files) {
+      const source = readFileSync(path, 'utf8');
+      for (const pattern of unsafeLogArguments) {
+        expect(source, `${path} contains unsafe diagnostic ${pattern}`).not.toMatch(pattern);
+      }
+    }
   });
 });
 

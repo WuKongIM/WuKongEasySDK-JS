@@ -33,19 +33,8 @@ const wkim = WKIM.init('ws://localhost:5100', {
  * }
  */
 wkim.on(WKIM.Event.CustomEvent, (eventNotification) => {
-    console.log('📢 Custom Event Received:', eventNotification);
-    
     // Access event properties
-    const { id, type, timestamp, data, header } = eventNotification;
-    
-    console.log(`Event ID: ${id}`);
-    console.log(`Event Type: ${type}`);
-    console.log(`Event Timestamp: ${new Date(timestamp).toISOString()}`);
-    console.log(`Event Data:`, data);
-    
-    if (header) {
-        console.log(`Event Header:`, header);
-    }
+    const { type, data } = eventNotification;
     
     // Handle different event types
     switch (type) {
@@ -62,7 +51,7 @@ wkim.on(WKIM.Event.CustomEvent, (eventNotification) => {
             handleSystemAnnouncement(data);
             break;
         default:
-            console.log(`Unhandled event type: ${type}`);
+            console.log('Unhandled custom event type');
     }
 });
 
@@ -71,7 +60,6 @@ wkim.on(WKIM.Event.CustomEvent, (eventNotification) => {
 // ============================================
 
 function handleUserStatusChanged(data) {
-    console.log('👤 User Status Changed:', data);
     // Example: { userId: "user456", status: "online", lastSeen: 1234567890 }
     
     // Update UI to show user's new status
@@ -81,7 +69,6 @@ function handleUserStatusChanged(data) {
 }
 
 function handleChannelUpdated(data) {
-    console.log('📝 Channel Updated:', data);
     // Example: { channelId: "channel123", channelType: 2, updateType: "name", newValue: "New Channel Name" }
     
     // Refresh channel information
@@ -91,7 +78,6 @@ function handleChannelUpdated(data) {
 }
 
 function handleNotificationReceived(data) {
-    console.log('🔔 Notification Received:', data);
     // Example: { title: "New Message", body: "You have a new message", priority: "high" }
     
     // Show browser notification
@@ -104,7 +90,6 @@ function handleNotificationReceived(data) {
 }
 
 function handleSystemAnnouncement(data) {
-    console.log('📣 System Announcement:', data);
     // Example: { message: "System maintenance scheduled", severity: "info", expiresAt: 1234567890 }
     
     // Display system announcement banner
@@ -116,28 +101,29 @@ function handleSystemAnnouncement(data) {
 // ============================================
 
 // Connection established
-wkim.on(WKIM.Event.Connect, (result) => {
-    console.log('✅ Connected to server:', result);
+wkim.on(WKIM.Event.Connect, () => {
+    console.log('✅ Connected to server');
 });
 
 // Disconnected from server
 wkim.on(WKIM.Event.Disconnect, (info) => {
-    console.log('❌ Disconnected from server:', info);
+    console.log(`❌ Disconnected from server (code: ${info?.code ?? 'unknown'})`);
 });
 
 // Error occurred
-wkim.on(WKIM.Event.Error, (error) => {
-    console.error('⚠️ Error:', error);
+wkim.on(WKIM.Event.Error, () => {
+    console.error('⚠️ SDK operation failed');
 });
 
 // Regular message received
 wkim.on(WKIM.Event.Message, (message) => {
-    console.log('💬 Message received:', message);
+    console.log(`💬 Message received (sequence: ${message.messageSeq}, channelType: ${message.channelType})`);
+    // Render message.payload in the chat UI; do not write it to production logs.
 });
 
 // Reconnecting
 wkim.on(WKIM.Event.Reconnecting, (info) => {
-    console.log('🔄 Reconnecting...', info);
+    console.log(`🔄 Reconnecting (attempt: ${info.attempt}, delay: ${info.delay}ms)`);
 });
 
 // ============================================
@@ -148,8 +134,8 @@ wkim.connect()
     .then(() => {
         console.log('🚀 SDK connected and ready to receive events!');
     })
-    .catch((error) => {
-        console.error('Failed to connect:', error);
+    .catch(() => {
+        console.error('Connection failed');
     });
 
 // ============================================
@@ -157,9 +143,6 @@ wkim.connect()
 // ============================================
 
 function updateUserStatusInUI(userId, status) {
-    // Example implementation
-    console.log(`Updating UI: User ${userId} is now ${status}`);
-    
     // In a real application, you would update the DOM:
     // const userElement = document.querySelector(`[data-user-id="${userId}"]`);
     // if (userElement) {
@@ -169,9 +152,6 @@ function updateUserStatusInUI(userId, status) {
 }
 
 function refreshChannelInfo(channelId, channelType) {
-    // Example implementation
-    console.log(`Refreshing channel info: ${channelId} (type: ${channelType})`);
-    
     // In a real application, you would fetch updated channel data:
     // fetch(`/api/channels/${channelId}`)
     //     .then(response => response.json())
@@ -179,9 +159,6 @@ function refreshChannelInfo(channelId, channelType) {
 }
 
 function showAnnouncementBanner(message, severity) {
-    // Example implementation
-    console.log(`Showing announcement: [${severity}] ${message}`);
-    
     // In a real application, you would display a banner:
     // const banner = document.createElement('div');
     // banner.className = `announcement-banner ${severity}`;
@@ -206,7 +183,7 @@ function onEventType(eventType, callback) {
 
 // Usage example:
 onEventType('user.status.changed', (event) => {
-    console.log('Filtered event handler for user.status.changed:', event);
+    updateUserStatusInUI(event.data.userId, event.data.status);
 });
 
 // ============================================

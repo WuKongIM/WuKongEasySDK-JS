@@ -10,6 +10,10 @@ A simple and easy-to-use communication SDK for WuKongIM, based on its JSON-RPC p
 npm install easyjssdk
 ```
 
+> The logging controls documented below are currently **Unreleased**. They are
+> available on `main` and will ship in the next npm release; `easyjssdk@2.0.2`
+> does not include `debugLogging` yet.
+
 ## Platform Support
 
 | Platform | Status | Notes |
@@ -47,18 +51,21 @@ const im = WKIM.init("ws://your-wukongim-server.com:5200", {
     token: "your_auth_token",   // Your authentication token
     // deviceId: "optional_device_id", // Optional device ID
     deviceFlag: WKIMDeviceFlag.Web // Optional: APP=0, WEB=1, PC=2
+}, {
+    // Optional. Disabled by default; enabled logs contain operational metadata only.
+    debugLogging: false
 });
 
 // 2. Receive messages
 im.on(WKIMEvent.Message, (message) => {
-    console.log("Received message:", message);
-    // Process received message (message.payload, message.fromUid, etc.)
+    renderMessage(message.payload);
+    // Avoid writing the complete message or payload to production logs.
 });
 
 // 2.1 Receive custom event notifications
 im.on(WKIMEvent.CustomEvent, (event) => {
-    console.log("Received event:", event);
-    // Handle custom events from server
+    handleCustomEvent(event.type, event.data);
+    // Avoid writing the complete event data to production logs.
     // event = { id, type, timestamp, data }
 });
 
@@ -74,6 +81,11 @@ const messagePayload = { type: 1, content: "Hello from EasyJSSDK!" };
 const sendResult = await im.send(targetChannelID, WKIMChannelType.Person, messagePayload);
 // sendResult.reasonCode
 ```
+
+The SDK does not write logs unless `debugLogging` is explicitly enabled. Even
+when enabled, it never logs authentication tokens, message payloads, raw
+WebSocket frames, server response bodies, or platform error objects. Handle the
+`WKIMEvent.Error` event when your application needs error details.
 
 ## Features
 
@@ -112,9 +124,6 @@ The SDK supports the Event Protocol, allowing you to receive custom event notifi
 ```javascript
 // Listen for custom events
 im.on(WKIMEvent.CustomEvent, (event) => {
-    console.log('Event Type:', event.type);
-    console.log('Event Data:', event.data);
-
     // Handle different event types
     switch (event.type) {
         case 'user.status.changed':
