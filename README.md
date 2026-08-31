@@ -10,10 +10,6 @@ A simple and easy-to-use communication SDK for WuKongIM, based on its JSON-RPC p
 npm install easyjssdk
 ```
 
-> The logging controls documented below are currently **Unreleased**. They are
-> available on `main` and will ship in the next npm release; `easyjssdk@2.0.2`
-> does not include `debugLogging` yet.
-
 ## Platform Support
 
 | Platform | Status | Notes |

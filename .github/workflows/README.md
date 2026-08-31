@@ -6,32 +6,26 @@ The `publish-npm.yml` workflow automatically publishes your EasyJSSDK package to
 
 ### Setup Instructions
 
-#### 1. Create NPM Token
+#### 1. Configure npm Trusted Publishing
 
-1. Log in to [npmjs.com](https://www.npmjs.com/)
-2. Go to your profile → Access Tokens
-3. Click "Generate New Token"
-4. Choose "Automation" type (recommended for CI/CD)
-5. Copy the generated token
+In the `easyjssdk` package settings on [npmjs.com](https://www.npmjs.com/),
+configure a GitHub Actions trusted publisher for:
 
-#### 2. Add NPM Token to GitHub Secrets
+- organization or user: `WuKongIM`
+- repository: `WuKongEasySDK-JS`
+- workflow: `publish-npm.yml`
 
-1. Go to your GitHub repository
-2. Navigate to Settings → Secrets and variables → Actions
-3. Click "New repository secret"
-4. Name: `NPM_TOKEN`
-5. Value: Paste your npm token
-6. Click "Add secret"
+The workflow exchanges GitHub's OIDC identity for short-lived npm credentials.
+It does not use or require an `NPM_TOKEN` repository secret.
 
 #### 3. Publishing Process
 
 The workflow triggers when you push a version tag:
 
 ```bash
-# Update version in package.json first
-npm version patch  # or minor, major
-git push origin main
-git push origin --tags
+# After the reviewed version commit is merged and main CI succeeds:
+git tag -a vX.Y.Z -m "Release X.Y.Z"
+git push origin vX.Y.Z
 ```
 
 #### 4. Workflow Features
@@ -53,13 +47,13 @@ The separate `ci.yml` workflow runs tests and builds the package for every pull 
 **Common Issues:**
 
 1. **Version Mismatch**: Ensure package.json version matches your git tag
-2. **NPM Token Invalid**: Regenerate and update the GitHub secret
+2. **OIDC Authentication Failed**: Verify the npm trusted publisher matches this repository and `publish-npm.yml`
 3. **Build Failures**: Check TypeScript compilation errors
 4. **Permission Denied**: Ensure you have publish rights to the npm package
 
 ### Security Notes
 
-- Never commit npm tokens to your repository
-- Use GitHub Secrets for sensitive information
+- Do not add a long-lived npm token when trusted publishing is available
+- Keep the workflow's `id-token: write` permission scoped to the publish job
 - The publishing workflow only runs on version tags for security
 - Consider using npm provenance for additional security
