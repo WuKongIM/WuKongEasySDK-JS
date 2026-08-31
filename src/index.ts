@@ -748,6 +748,13 @@ type EventHandler = (...args: any[]) => void;
 export class WKIM {
     private static globalInstance: WKIM | null = null;
 
+    /** Event names, also exported separately as `Event` and `WKIMEvent`. */
+    public static readonly Event = Event;
+    /** Channel types, also exported separately as `ChannelType` and `WKIMChannelType`. */
+    public static readonly ChannelType = ChannelType;
+    /** Device flags, also exported separately as `DeviceFlag` and `WKIMDeviceFlag`. */
+    public static readonly DeviceFlag = DeviceFlag;
+
     private ws: IWebSocketAdapter | null = null;
     private url: string;
     private auth: AuthOptions;
@@ -893,10 +900,23 @@ export class WKIM {
      */
     public disconnect(): void {
         this.logger.debug("Manual disconnect initiated");
+        const wasActive = this.isConnected ||
+            this.ws?.readyState === WS_CONNECTING ||
+            this.ws?.readyState === WS_OPEN;
         this.manualDisconnect = true;
         this.isReconnecting = false; // Stop any ongoing reconnection attempts
         this.cleanupBeforeUnloadHandler(); // Remove page unload listeners
         this.handleDisconnect(true, "Manual disconnection");
+
+        // cleanupConnection removes the transport close handler, so a manual
+        // close cannot rely on the later onclose callback to notify clients.
+        // Emit the lifecycle event synchronously and only for an active socket.
+        if (wasActive) {
+            this.emit(Event.Disconnect, {
+                code: 1000,
+                reason: "Client disconnected",
+            });
+        }
     }
 
     /**
@@ -1356,14 +1376,14 @@ export class WKIM {
              this.connectionPromise = null;
          }
 
-        // Don't nullify ws immediately if onclose handler needs it, but ensure no further ops
+        // Detach the transport so reconnects cannot be affected by a stale socket.
         if (this.ws) {
-            // Remove listeners to prevent potential memory leaks and duplicate handling
+            // Remove listeners to prevent potential memory leaks and duplicate handling.
              this.ws.onopen = null;
              this.ws.onmessage = null;
              this.ws.onerror = null;
              this.ws.onclose = null;
-             // Consider setting this.ws = null here or after a short delay if needed
+             this.ws = null;
         }
         // Do NOT clear eventListeners here, user might want to reconnect.
     }

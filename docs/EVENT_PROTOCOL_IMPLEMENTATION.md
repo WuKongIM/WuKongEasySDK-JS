@@ -201,9 +201,9 @@ Created practical examples:
 - ✅ `example/event-test.html` - Interactive test page
 
 ### Build Output
-- ✅ `dist/index.js` - Compiled JavaScript
-- ✅ `dist/index.d.ts` - TypeScript definitions
-- ✅ `dist/index.js.map` - Source map
+- ✅ `dist/esm/index.js` - Compiled ES module
+- ✅ `dist/esm/index.d.ts` - TypeScript definitions
+- ✅ `dist/esm/index.js.map` - ES module source map
 
 ## Key Features Implemented
 
@@ -265,7 +265,7 @@ npm run build
 ✅ **Result:** Build successful, no TypeScript errors
 
 ### Type Definitions
-✅ **Result:** `EventNotification` interface properly exported in `dist/index.d.ts`
+✅ **Result:** `EventNotification` interface properly exported in `dist/esm/index.d.ts`
 
 ### Integration
 ✅ **Result:** Event protocol integrated with existing notification handling system

@@ -6,8 +6,8 @@
  */
 
 // Import the SDK (adjust path based on your setup)
-// For browser: <script src="../dist/index.js"></script>
-// For Node.js: const { WKIM, Event } = require('../dist/index.js');
+// For browser: import { WKIM, Event } from '../dist/esm/index.js';
+// For Node.js: const { WKIM, Event } = require('../dist/cjs/index.js');
 
 // Initialize the SDK
 const wkim = WKIM.init('ws://localhost:5100', {

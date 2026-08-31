@@ -278,8 +278,9 @@
         </div>
     </div>
 
-    <script src="../dist/index.js"></script>
-    <script>
+    <script type="module">
+        import { WKIM, Event } from '../dist/esm/index.js';
+
         // Initialize SDK
         let wkim = null;
         let stats = {
@@ -371,25 +372,25 @@
             });
 
             // Setup event listeners
-            wkim.on(WKIM.Event.Connect, (result) => {
+            wkim.on(Event.Connect, (result) => {
                 updateStatus('connected', 'Connected');
                 addLog('Connected to server', 'success');
                 connectBtn.disabled = true;
                 disconnectBtn.disabled = false;
             });
 
-            wkim.on(WKIM.Event.Disconnect, (info) => {
+            wkim.on(Event.Disconnect, (info) => {
                 updateStatus('disconnected', 'Disconnected');
                 addLog('Disconnected from server', 'warning');
                 connectBtn.disabled = false;
                 disconnectBtn.disabled = true;
             });
 
-            wkim.on(WKIM.Event.Error, () => {
+            wkim.on(Event.Error, () => {
                 addLog('SDK operation failed', 'error');
             });
 
-            wkim.on(WKIM.Event.CustomEvent, (event) => {
+            wkim.on(Event.CustomEvent, (event) => {
                 addLog('Custom event received', 'success');
                 addEvent(event);
             });

@@ -77,6 +77,12 @@ afterEach(() => {
 // ===== Initialization Tests =====
 
 describe('WKIM.init()', () => {
+  it('exposes enums through the documented WKIM namespace', () => {
+    expect(WKIM.Event).toBe(Event);
+    expect(WKIM.ChannelType).toBe(ChannelType);
+    expect(WKIM.DeviceFlag).toBe(DeviceFlag);
+  });
+
   it('creates an instance with valid params', () => {
     const wkim = WKIM.init('ws://test:5100', { uid: 'user1', token: 'token1' });
     expect(wkim).toBeInstanceOf(WKIM);
@@ -293,6 +299,26 @@ describe('Logging security', () => {
       for (const pattern of unsafeLogArguments) {
         expect(source, `${path} contains unsafe diagnostic ${pattern}`).not.toMatch(pattern);
       }
+    }
+  });
+
+  it('shipped examples reference SDK entrypoints produced by the build', () => {
+    const appSource = readFileSync('example/app.js', 'utf8');
+    const eventExampleSource = readFileSync('example/event-example.js', 'utf8');
+    const eventTestSource = readFileSync('example/event-test.html', 'utf8');
+    const documentationSources = [
+      readFileSync('IMPLEMENTATION_SUMMARY.md', 'utf8'),
+      readFileSync('docs/EVENT_PROTOCOL_IMPLEMENTATION.md', 'utf8'),
+    ];
+
+    expect(appSource).toContain("from '../dist/esm/index.js'");
+    expect(eventExampleSource).toContain("from '../dist/esm/index.js'");
+    expect(eventExampleSource).toContain("require('../dist/cjs/index.js')");
+    expect(eventTestSource).toContain('<script type="module">');
+    expect(eventTestSource).toContain("from '../dist/esm/index.js'");
+
+    for (const source of [appSource, eventExampleSource, eventTestSource, ...documentationSources]) {
+      expect(source).not.toMatch(/dist\/index\.(?:js|js\.map|d\.ts)/);
     }
   });
 });
@@ -850,6 +876,23 @@ describe('Reconnection', () => {
 // ===== Cleanup Tests =====
 
 describe('Cleanup', () => {
+  it('manual disconnect emits Disconnect exactly once', async () => {
+    const { wkim } = await createConnectedInstance();
+    const disconnectHandler = vi.fn();
+    wkim.on(Event.Disconnect, disconnectHandler);
+
+    wkim.disconnect();
+
+    await vi.waitFor(() => expect(disconnectHandler).toHaveBeenCalledTimes(1));
+    expect(disconnectHandler).toHaveBeenCalledWith({
+      code: 1000,
+      reason: 'Client disconnected',
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(disconnectHandler).toHaveBeenCalledTimes(1);
+  });
+
   it('disconnect() sets isConnected to false', async () => {
     const { wkim } = await createConnectedInstance();
     expect(wkim.isConnected).toBe(true);

@@ -1,6 +1,6 @@
 // Assuming you have built the SDK using `npm run build`
 // Adjust the path if your structure or build output differs
-import { WKIM, WKIMChannelType, WKIMEvent } from '../dist/index.js';
+import { WKIM, WKIMChannelType, WKIMEvent } from '../dist/esm/index.js';
 
 // UI Elements
 const serverUrlInput = document.getElementById('server-url');
