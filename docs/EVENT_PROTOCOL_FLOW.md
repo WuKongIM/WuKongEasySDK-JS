@@ -232,7 +232,7 @@ This document illustrates the flow of event notifications through the EasyJSSDK 
 
 ```javascript
 // 1. Initialize SDK
-const wkim = WKIM.init('ws://localhost:5100', {
+const wkim = WKIM.init('ws://localhost:5200', {
     uid: 'user123',
     token: 'auth-token'
 });

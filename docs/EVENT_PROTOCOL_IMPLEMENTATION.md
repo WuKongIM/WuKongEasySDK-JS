@@ -82,7 +82,10 @@ private handleEventNotification(params: any): void {
         };
 
         // Validate required fields
-        if (!eventData.id || !eventData.type || !eventData.timestamp || eventData.data === undefined) {
+        if (!eventData.id || !eventData.type ||
+            typeof eventData.timestamp !== 'number' ||
+            !Number.isFinite(eventData.timestamp) ||
+            eventData.data === undefined) {
             this.logger.error('Invalid event notification: missing required fields');
             this.emit(Event.Error, new Error('Invalid event notification: missing required fields'));
             return;
@@ -201,9 +204,10 @@ Created practical examples:
 - ✅ `example/event-test.html` - Interactive test page
 
 ### Build Output
-- ✅ `dist/index.js` - Compiled JavaScript
-- ✅ `dist/index.d.ts` - TypeScript definitions
-- ✅ `dist/index.js.map` - Source map
+- ✅ `dist/esm/index.js` - Compiled ES module
+- ✅ `dist/esm/index.d.ts` - TypeScript definitions
+- ✅ `dist/esm/index.js.map` - ES module source map
+- ✅ `dist/cjs/index.js` - Compiled CommonJS module
 
 ## Key Features Implemented
 
@@ -231,7 +235,7 @@ Events are emitted through the existing event system using `Event.CustomEvent`, 
 
 ```javascript
 // Initialize SDK
-const wkim = WKIM.init('ws://localhost:5100', {
+const wkim = WKIM.init('ws://localhost:5200', {
     uid: 'user123',
     token: 'auth-token'
 });
@@ -265,7 +269,7 @@ npm run build
 ✅ **Result:** Build successful, no TypeScript errors
 
 ### Type Definitions
-✅ **Result:** `EventNotification` interface properly exported in `dist/index.d.ts`
+✅ **Result:** `EventNotification` interface properly exported in `dist/esm/index.d.ts`
 
 ### Integration
 ✅ **Result:** Event protocol integrated with existing notification handling system

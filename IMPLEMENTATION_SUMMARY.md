@@ -78,10 +78,11 @@ The Event Protocol from the WuKongIM JSON-RPC schema has been successfully imple
 1. ✅ `src/index.ts` - Core implementation
 2. ✅ `README.md` - Updated with Event Protocol info
 
-### Build Output (3)
-1. ✅ `dist/index.js` - Compiled JavaScript
-2. ✅ `dist/index.d.ts` - TypeScript definitions
-3. ✅ `dist/index.js.map` - Source map
+### Build Output (4)
+1. ✅ `dist/esm/index.js` - Compiled ES module
+2. ✅ `dist/esm/index.d.ts` - TypeScript definitions
+3. ✅ `dist/esm/index.js.map` - ES module source map
+4. ✅ `dist/cjs/index.js` - Compiled CommonJS module
 
 ---
 
@@ -103,7 +104,7 @@ interface EventNotification {
 
 ```javascript
 // Initialize SDK
-const wkim = WKIM.init('ws://localhost:5100', {
+const wkim = WKIM.init('ws://localhost:5200', {
     uid: 'user123',
     token: 'auth-token'
 });
@@ -206,7 +207,7 @@ npm install easyjssdk
 
 ### Step 2: Initialize SDK
 ```javascript
-const wkim = WKIM.init('ws://your-server:5100', {
+const wkim = WKIM.init('ws://your-server:5200', {
     uid: 'user123',
     token: 'your-token'
 });

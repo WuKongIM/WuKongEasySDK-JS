@@ -13,7 +13,7 @@ The Event Protocol allows the WuKongIM server to send custom event notifications
 
 ```javascript
 // Initialize SDK
-const wkim = WKIM.init('ws://localhost:5100', {
+const wkim = WKIM.init('ws://localhost:5200', {
     uid: 'user123',
     token: 'your-auth-token'
 });
@@ -104,7 +104,7 @@ onEventType('system.announcement', (event) => {
 
 ```javascript
 // Initialize
-const wkim = WKIM.init('ws://localhost:5100', {
+const wkim = WKIM.init('ws://localhost:5200', {
     uid: 'user123',
     token: 'your-token'
 });
@@ -244,7 +244,7 @@ The SDK includes full TypeScript definitions:
 ```typescript
 import { WKIM, Event, EventNotification } from 'easyjssdk';
 
-const wkim = WKIM.init('ws://localhost:5100', {
+const wkim = WKIM.init('ws://localhost:5200', {
     uid: 'user123',
     token: 'token'
 });
