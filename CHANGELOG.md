@@ -4,6 +4,17 @@ All notable changes to EasyJSSDK will be documented in this file.
 
 ## [Unreleased]
 
+## [2.0.4] - 2026-09-01
+
+### Fixed
+- Isolated WebSocket connection generations so callbacks from an older socket cannot alter a newer connection
+- Continued automatic reconnection after failed retry attempts instead of stopping permanently
+- Completed manual disconnect once and prevented duplicate lifecycle listeners across reconnects
+- Repaired the browser examples and rejected malformed events that omit required fields
+
+### Security
+- Raised the optional Node.js `ws` dependency to `^8.21.3` to exclude the vulnerable ranges in GHSA-58qx-3vcg-4xpx and GHSA-96hv-2xvq-fx4p
+
 ## [2.0.3] - 2026-08-31
 
 ### Fixed
