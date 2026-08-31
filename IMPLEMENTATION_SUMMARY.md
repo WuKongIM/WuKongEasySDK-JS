@@ -78,10 +78,11 @@ The Event Protocol from the WuKongIM JSON-RPC schema has been successfully imple
 1. ✅ `src/index.ts` - Core implementation
 2. ✅ `README.md` - Updated with Event Protocol info
 
-### Build Output (3)
+### Build Output (4)
 1. ✅ `dist/esm/index.js` - Compiled ES module
 2. ✅ `dist/esm/index.d.ts` - TypeScript definitions
 3. ✅ `dist/esm/index.js.map` - ES module source map
+4. ✅ `dist/cjs/index.js` - Compiled CommonJS module
 
 ---
 

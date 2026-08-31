@@ -742,7 +742,6 @@ type PendingRequest = {
 };
 
 type ConnectionAttempt = {
-    generation: number;
     resolve: (value: void | PromiseLike<void>) => void;
     reject: (reason?: any) => void;
 };
@@ -854,7 +853,7 @@ export class WKIM {
             this.manualDisconnect = false;
 
             const generation = ++this.connectionGeneration;
-            const attempt: ConnectionAttempt = { generation, resolve, reject };
+            const attempt: ConnectionAttempt = { resolve, reject };
             this.connectionAttempt = attempt;
 
             try {

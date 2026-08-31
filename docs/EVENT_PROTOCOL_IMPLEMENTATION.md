@@ -204,6 +204,7 @@ Created practical examples:
 - ✅ `dist/esm/index.js` - Compiled ES module
 - ✅ `dist/esm/index.d.ts` - TypeScript definitions
 - ✅ `dist/esm/index.js.map` - ES module source map
+- ✅ `dist/cjs/index.js` - Compiled CommonJS module
 
 ## Key Features Implemented
 
