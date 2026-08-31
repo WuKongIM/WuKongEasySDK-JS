@@ -741,6 +741,12 @@ type PendingRequest = {
     timeoutTimer: NodeJS.Timeout;
 };
 
+type ConnectionAttempt = {
+    generation: number;
+    resolve: (value: void | PromiseLike<void>) => void;
+    reject: (reason?: any) => void;
+};
+
 type EventHandler = (...args: any[]) => void;
 
 // --- WKIM Class ---
@@ -760,7 +766,9 @@ export class WKIM {
     private auth: AuthOptions;
     private readonly logger: SDKLogger;
     public isConnected: boolean = false;
-    private connectionPromise: { resolve: (value: void | PromiseLike<void>) => void; reject: (reason?: any) => void; } | null = null;
+    private connectionPromise: ConnectionAttempt | null = null;
+    /** Monotonically identifies the transport allowed to mutate connection state. */
+    private connectionGeneration: number = 0;
     private pingInterval: NodeJS.Timeout | null = null;
     private pingTimeout: NodeJS.Timeout | null = null;
     private PING_INTERVAL_MS = 25 * 1000; // Send ping every 25 seconds
@@ -797,7 +805,7 @@ export class WKIM {
 
     /**
      * Initializes the WKIM instance.
-     * @param url WebSocket server URL (e.g., "ws://localhost:5100")
+     * @param url WebSocket server URL (e.g., "ws://localhost:5200")
      * @param auth Authentication options { uid, token, ... }
      * @param options Configuration options. Debug logging is disabled by default.
      * @returns A WKIM instance
@@ -845,37 +853,43 @@ export class WKIM {
             // On a new connect call, reset manual disconnect flag
             this.manualDisconnect = false;
 
-            this.connectionPromise = { resolve, reject };
+            const generation = ++this.connectionGeneration;
+            const attempt: ConnectionAttempt = { generation, resolve, reject };
+            this.connectionPromise = attempt;
 
             try {
                 this.logger.debug(`Connecting WebSocket (platform: ${getPlatform()})`);
-                this.ws = createWebSocket(this.url, this.logger);
+                const socket = createWebSocket(this.url, this.logger);
+                this.ws = socket;
 
-                this.ws.onopen = () => {
+                socket.onopen = () => {
+                    if (!this.isCurrentConnection(socket, generation)) return;
                     this.logger.debug("WebSocket connection opened; authenticating");
-                    this.sendConnectRequest();
+                    this.sendConnectRequest(socket, generation, attempt);
                 };
 
-                this.ws.onmessage = (event) => {
+                socket.onmessage = (event) => {
+                    if (!this.isCurrentConnection(socket, generation)) return;
                     this.handleMessage(event.data);
                 };
 
-                this.ws.onerror = (event: any) => {
+                socket.onerror = (event: any) => {
+                    if (!this.isCurrentConnection(socket, generation)) return;
                     const errorMessage = event.message || (event.error ? event.error.message : 'WebSocket error');
                     this.logger.error("WebSocket transport error");
                     this.emit(Event.Error, event.error || new Error(errorMessage));
                     // The 'onclose' event will be fired next, which will handle cleanup and reconnection logic.
                 };
 
-                this.ws.onclose = (event) => {
+                socket.onclose = (event) => {
+                    if (!this.isCurrentConnection(socket, generation)) return;
                     const wasConnected = this.isConnected;
                     this.logger.debug(`WebSocket connection closed (code: ${event.code})`);
-
-                    if (this.connectionPromise && !this.isConnected) { // Reject connect promise if closed before connect ack
-                        this.connectionPromise.reject(new Error(`Connection closed before authentication (Code: ${event.code})`));
-                    }
-
-                    this.cleanupConnection(); // Clean up state like intervals, pending requests.
+                    this.cleanupConnection(
+                        socket,
+                        generation,
+                        new Error(`Connection closed before authentication (Code: ${event.code})`),
+                    );
                     this.emit(Event.Disconnect, { code: event.code, reason: event.reason });
 
                     // Only try to reconnect if we were previously connected and it wasn't a manual disconnect.
@@ -884,11 +898,12 @@ export class WKIM {
                     }
                 };
             } catch (error) {
+                if (this.connectionGeneration !== generation) return;
                 this.logger.error("Failed to create WebSocket");
                 this.emit(Event.Error, error);
-                 if (this.connectionPromise) {
-                     this.connectionPromise.reject(error);
+                 if (this.connectionPromise === attempt) {
                      this.connectionPromise = null;
+                     attempt.reject(error);
                  }
                 this.cleanupConnection();
             }
@@ -1031,7 +1046,11 @@ export class WKIM {
         });
     }
 
-    private sendConnectRequest(): void {
+    private sendConnectRequest(
+        socket: IWebSocketAdapter,
+        generation: number,
+        attempt: ConnectionAttempt,
+    ): void {
         const params = {
             uid: this.auth.uid,
             token: this.auth.token,
@@ -1042,6 +1061,7 @@ export class WKIM {
         };
         this.sendRequest<ConnectResult>('connect', params, 5000) // 5s timeout for connect
             .then(result => {
+                if (!this.isCurrentConnection(socket, generation)) return;
                 this.logger.debug("Authentication successful");
                 this.isConnected = true;
 
@@ -1050,19 +1070,20 @@ export class WKIM {
                 this.isReconnecting = false;
                 this.manualDisconnect = false;
 
-                this.startPing();
+                this.startPing(socket, generation);
                 this.emit(Event.Connect, result);
-                 if (this.connectionPromise) {
-                    this.connectionPromise.resolve();
+                 if (this.connectionPromise === attempt) {
                     this.connectionPromise = null;
+                    attempt.resolve();
                 }
             })
             .catch(error => {
+                if (!this.isCurrentConnection(socket, generation)) return;
                 this.logger.error("Authentication failed");
                 this.emit(Event.Error, new Error(`Authentication failed: ${error.message || JSON.stringify(error)}`));
-                 if (this.connectionPromise) {
-                    this.connectionPromise.reject(error);
+                 if (this.connectionPromise === attempt) {
                     this.connectionPromise = null;
+                    attempt.reject(error);
                 }
                 // Don't start reconnection on auth failure, it's a permanent error.
                 this.handleDisconnect(false, "Authentication failed"); // Close connection on auth failure
@@ -1302,13 +1323,14 @@ export class WKIM {
         }
     }
 
-     private startPing(): void {
+     private startPing(socket: IWebSocketAdapter, generation: number): void {
         this.stopPing(); // Clear existing timers
         this.pingInterval = setInterval(() => {
-            if (this.ws && this.ws.readyState === WS_OPEN) {
+            if (this.isCurrentConnection(socket, generation) && socket.readyState === WS_OPEN) {
                 this.sendRequest('ping', {}, this.PONG_TIMEOUT_MS)
                     .then(this.handlePong.bind(this)) // Technically pong is a notification, but use req/res for timeout
                     .catch(err => {
+                        if (!this.isCurrentConnection(socket, generation)) return;
                         this.logger.error("Ping failed or timed out");
                         this.emit(Event.Error, new Error(`Ping timeout: ${err?.message || err}`));
                         // Treat ping timeout as an unhealthy connection: close and reconnect
@@ -1355,36 +1377,48 @@ export class WKIM {
         this.cleanupConnection(); // Clean up state regardless of how close happened
     }
 
-    private cleanupConnection(): void {
+    private isCurrentConnection(socket: IWebSocketAdapter, generation: number): boolean {
+        return this.ws === socket && this.connectionGeneration === generation;
+    }
+
+    private cleanupConnection(
+        expectedSocket?: IWebSocketAdapter,
+        expectedGeneration?: number,
+        connectionError: Error = new Error("Connection closed during operation"),
+    ): void {
+        if (expectedSocket && expectedGeneration !== undefined &&
+            !this.isCurrentConnection(expectedSocket, expectedGeneration)) {
+            return;
+        }
         this.logger.debug("Cleaning up connection resources");
+        const socket = this.ws;
+        const pendingRequests = Array.from(this.pendingRequests.values());
+        const connectionAttempt = this.connectionPromise;
+
+        // Invalidate and detach shared state before rejecting promises. Their
+        // continuations may start a replacement connection synchronously.
+        this.connectionGeneration++;
         this.isConnected = false;
+        this.ws = null;
+        this.connectionPromise = null;
+        this.pendingRequests.clear();
         this.stopPing();
 
-        // Reject any pending requests
-        this.pendingRequests.forEach((pending) => {
+        if (socket) {
+            socket.onopen = null;
+            socket.onmessage = null;
+            socket.onerror = null;
+            socket.onclose = null;
+        }
+
+        pendingRequests.forEach((pending) => {
             clearTimeout(pending.timeoutTimer);
             pending.reject(new Error("Connection closed"));
         });
-        this.pendingRequests.clear();
 
-         // Clear connection promise if it exists and hasn't resolved/rejected
-         if (this.connectionPromise) {
-             // Only reject if we're not in a reconnection loop that will try again.
-             if(!this.isReconnecting && !this.isConnected) {
-                this.connectionPromise.reject(new Error("Connection closed during operation"));
-             }
-             this.connectionPromise = null;
+         if (connectionAttempt && !this.isReconnecting) {
+             connectionAttempt.reject(connectionError);
          }
-
-        // Detach the transport so reconnects cannot be affected by a stale socket.
-        if (this.ws) {
-            // Remove listeners to prevent potential memory leaks and duplicate handling.
-             this.ws.onopen = null;
-             this.ws.onmessage = null;
-             this.ws.onerror = null;
-             this.ws.onclose = null;
-             this.ws = null;
-        }
         // Do NOT clear eventListeners here, user might want to reconnect.
     }
 

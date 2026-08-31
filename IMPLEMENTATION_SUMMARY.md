@@ -103,7 +103,7 @@ interface EventNotification {
 
 ```javascript
 // Initialize SDK
-const wkim = WKIM.init('ws://localhost:5100', {
+const wkim = WKIM.init('ws://localhost:5200', {
     uid: 'user123',
     token: 'auth-token'
 });
@@ -206,7 +206,7 @@ npm install easyjssdk
 
 ### Step 2: Initialize SDK
 ```javascript
-const wkim = WKIM.init('ws://your-server:5100', {
+const wkim = WKIM.init('ws://your-server:5200', {
     uid: 'user123',
     token: 'your-token'
 });

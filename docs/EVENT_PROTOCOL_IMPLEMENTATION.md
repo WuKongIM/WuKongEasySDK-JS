@@ -231,7 +231,7 @@ Events are emitted through the existing event system using `Event.CustomEvent`, 
 
 ```javascript
 // Initialize SDK
-const wkim = WKIM.init('ws://localhost:5100', {
+const wkim = WKIM.init('ws://localhost:5200', {
     uid: 'user123',
     token: 'auth-token'
 });

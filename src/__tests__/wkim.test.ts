@@ -308,14 +308,22 @@ describe('Logging security', () => {
     const eventTestSource = readFileSync('example/event-test.html', 'utf8');
     const documentationSources = [
       readFileSync('IMPLEMENTATION_SUMMARY.md', 'utf8'),
+      readFileSync('docs/EVENT_PROTOCOL_FLOW.md', 'utf8'),
       readFileSync('docs/EVENT_PROTOCOL_IMPLEMENTATION.md', 'utf8'),
+      readFileSync('docs/EVENT_PROTOCOL_QUICKSTART.md', 'utf8'),
     ];
 
     expect(appSource).toContain("from '../dist/esm/index.js'");
-    expect(eventExampleSource).toContain("from '../dist/esm/index.js'");
+    expect(eventExampleSource).toMatch(
+      /^import \{ WKIM, Event \} from '\.\.\/dist\/esm\/index\.js';$/m,
+    );
     expect(eventExampleSource).toContain("require('../dist/cjs/index.js')");
     expect(eventTestSource).toContain('<script type="module">');
     expect(eventTestSource).toContain("from '../dist/esm/index.js'");
+
+    for (const source of [eventExampleSource, eventTestSource, ...documentationSources]) {
+      expect(source).not.toContain('ws://localhost:5100');
+    }
 
     for (const source of [appSource, eventExampleSource, eventTestSource, ...documentationSources]) {
       expect(source).not.toMatch(/dist\/index\.(?:js|js\.map|d\.ts)/);
@@ -485,6 +493,42 @@ describe('Connection', () => {
     await expect(connectPromise).rejects.toEqual(
       expect.objectContaining({ message: 'Invalid token' })
     );
+    wkim.destroy();
+  });
+
+  it('disconnect during authentication cannot close a replacement connection', async () => {
+    const instancesBefore = getInstances().length;
+    const wkim = WKIM.init(
+      'ws://test:5200',
+      { uid: 'testUser', token: 'testToken' },
+      { singleton: false },
+    );
+
+    const firstConnect = wkim.connect();
+    const firstOutcome = firstConnect.catch((error) => error);
+    const firstSocket = getInstances()[instancesBefore];
+    firstSocket.simulateOpen();
+    await vi.waitFor(() => expect(firstSocket.findSentMessage('connect')).toBeTruthy());
+
+    wkim.disconnect();
+
+    const secondConnect = wkim.connect();
+    const secondOutcome = secondConnect.then(
+      () => ({ ok: true as const }),
+      (error) => ({ ok: false as const, error }),
+    );
+    const secondSocket = getInstances()[instancesBefore + 1];
+    secondSocket.simulateOpen();
+    await vi.waitFor(() => expect(secondSocket.findSentMessage('connect')).toBeTruthy());
+
+    await firstOutcome;
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(secondSocket.readyState).toBe(MockWebSocket.OPEN);
+    secondSocket.simulateAuthSuccess();
+    expect(await secondOutcome).toEqual({ ok: true });
+    expect(wkim.isConnected).toBe(true);
     wkim.destroy();
   });
 

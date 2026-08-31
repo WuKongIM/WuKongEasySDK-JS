@@ -366,7 +366,7 @@
             updateStatus('connecting', 'Connecting...');
             addLog('Initializing SDK...', 'info');
             
-            wkim = WKIM.init('ws://localhost:5100', {
+            wkim = WKIM.init('ws://localhost:5200', {
                 uid: 'test-user-' + Date.now(),
                 token: 'test-token'
             });
