@@ -6,6 +6,8 @@ A simple and easy-to-use communication SDK for WuKongIM, based on its JSON-RPC p
 
 ## Installation
 
+Version **2.0.5** includes the native Node WebSocket handshake/reconnect repair.
+
 ```bash
 npm install easyjssdk
 ```

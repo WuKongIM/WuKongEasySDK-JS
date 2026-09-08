@@ -39,8 +39,9 @@ Node 22/24 therefore normally select their native implementation. The historical
 that the process is a browser. Applications that provide a standard global
 constructor must do so before the first SDK connection/platform detection.
 
-The handshake fix is in **Unreleased source**. npm `easyjssdk 2.0.4` does not
-contain it. A source interoperability receipt must name its exact Git revision
-and must not be attributed to that published package. No TLS verification is
-disabled by this repair. Browser/WSS interoperability receipts are maintained
-separately by the C# SDK test suite.
+Version **2.0.5** includes the handshake fix; `easyjssdk 2.0.4` does not.
+The original repaired-source receipt uses commit
+`5e5dfb727fb0ea08294939962ae799e998b7ca5c`; it must not be attributed to the older
+package. Public-package interoperability receipts are recorded separately in
+the [C# SDK suite](https://github.com/WuKongIM/WuKongEasySDK-CSharp/blob/main/docs/interoperability.md).
+No TLS verification is disabled by this repair.
