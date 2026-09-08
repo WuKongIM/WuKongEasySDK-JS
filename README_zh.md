@@ -6,6 +6,8 @@
 
 ## 安装
 
+**2.0.5** 包含 Node 原生 WebSocket 握手失败后的重连修复。
+
 ```bash
 npm install easyjssdk
 ```
