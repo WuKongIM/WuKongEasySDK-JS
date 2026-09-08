@@ -15,10 +15,12 @@ npm install easyjssdk
 | 平台 | 状态 | 说明 |
 |------|------|------|
 | 浏览器 | ✅ | 原生 WebSocket |
-| Node.js | ✅ | 通过 `ws`（自动作为可选依赖安装） |
+| Node.js | ✅ | 优先使用全局/原生 `WebSocket`，否则使用可选依赖 `ws` |
 | 微信小程序 | ✅ | 使用 `wx.connectSocket` |
 | 支付宝小程序 | ✅ | 使用 `my.connectSocket` |
 | UniApp | ✅ | 使用 `uni.connectSocket` |
+
+Node 22/24 自带全局 WebSocket，会优先于 `ws` 回退实现。`getPlatform()` 将这一共享构造器路径命名为 `browser`，并不代表进程运行在浏览器中。当前源码中的握手失败修复与回归测试见 [传输恢复验证](docs/TRANSPORT_RECOVERY.md)。
 
 ### 微信小程序
 

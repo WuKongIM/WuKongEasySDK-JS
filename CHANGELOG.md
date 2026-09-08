@@ -4,6 +4,10 @@ All notable changes to EasyJSSDK will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+- Settle failed WebSocket handshakes when the transport emits `error` without `close`, allowing bounded automatic retries to continue on native Node WebSocket. Late close callbacks remain fenced to their original connection generation.
+- Document native/global WebSocket selection in Node and add real TCP handshake regression coverage for Node 22.12.0, 24.3.0, and the `ws` transport.
+
 ## [2.0.4] - 2026-09-01
 
 ### Fixed

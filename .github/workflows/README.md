@@ -42,6 +42,10 @@ git push origin vX.Y.Z
 
 The separate `ci.yml` workflow runs tests and builds the package for every pull request and push to `main`.
 
+CI covers Node 20, 22.12.0, and 24.3.0. A bounded real TCP regression additionally
+checks native WebSocket on Node 22/24 and the optional `ws` transport on all three.
+It owns only loopback listeners and temporary clients, with no external service.
+
 ### Troubleshooting
 
 **Common Issues:**
