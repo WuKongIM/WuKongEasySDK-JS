@@ -15,10 +15,15 @@ npm install easyjssdk
 | Platform | Status | Notes |
 |----------|--------|-------|
 | Browser | ✅ | Native WebSocket |
-| Node.js | ✅ | Via `ws` (auto-installed as optional dependency) |
+| Node.js | ✅ | Global/native `WebSocket` when available; otherwise optional `ws` |
 | WeChat Mini Program | ✅ | Uses `wx.connectSocket` |
 | Alipay Mini Program | ✅ | Uses `my.connectSocket` |
 | UniApp | ✅ | Uses `uni.connectSocket` |
+
+Node 22/24 provide a global WebSocket, which this SDK selects before the `ws`
+fallback. `getPlatform()` calls this shared native-constructor path `browser`,
+even when running in Node. See [transport recovery verification](docs/TRANSPORT_RECOVERY.md)
+for the handshake-error fix in current source and its regression tests.
 
 ### WeChat Mini Program
 

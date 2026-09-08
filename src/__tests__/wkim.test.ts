@@ -966,6 +966,49 @@ describe('Reconnection', () => {
 
     wkim.destroy();
   });
+
+  it('continues reconnecting when a handshake emits error without close', async () => {
+    const { wkim, ws } = await createConnectedInstance();
+    const reconnectHandler = vi.fn();
+    wkim.on(Event.Reconnecting, reconnectHandler);
+    vi.useFakeTimers();
+    try {
+      ws.simulateClose(1006, 'Initial connection lost');
+      await vi.advanceTimersByTimeAsync(1000);
+      const retry = getInstances().at(-1)!;
+      const lateClose = retry.onclose;
+      retry.simulateError('Handshake failed without a close event');
+      lateClose?.({ code: 1006, reason: 'Delayed close from the failed transport' });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(reconnectHandler).toHaveBeenCalledTimes(2);
+      expect(reconnectHandler).toHaveBeenNthCalledWith(
+        2, expect.objectContaining({ attempt: 2, delay: 2000 }),
+      );
+      await vi.advanceTimersByTimeAsync(2000);
+      const replacement = getInstances().at(-1)!;
+      expect(replacement).not.toBe(retry);
+      replacement.simulateOpen();
+      replacement.simulateAuthSuccess();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(wkim.isConnected).toBe(true);
+    } finally {
+      wkim.destroy();
+    }
+  });
+
+  it('rejects initial handshake error without retrying or waiting for close', async () => {
+    const { wkim, getWs } = createInstance();
+    vi.useFakeTimers();
+    const reconnectHandler = vi.fn();
+    wkim.on(Event.Reconnecting, reconnectHandler);
+    const rejected = expect(wkim.connect()).rejects.toThrow('Connection closed before authentication');
+    getWs().simulateError('Handshake failed');
+    await vi.advanceTimersByTimeAsync(0);
+    await rejected;
+    expect(reconnectHandler).not.toHaveBeenCalled();
+    expect(wkim.isConnected).toBe(false);
+    wkim.destroy();
+  });
 });
 
 // ===== Cleanup Tests =====

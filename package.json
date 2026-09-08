@@ -20,7 +20,8 @@
   "scripts": {
     "build": "tsc && tsc -p tsconfig.cjs.json",
     "prepublishOnly": "npm run build",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:integration": "node --test scripts/native-reconnect.integration.cjs"
   },
   "keywords": [],
   "author": "",

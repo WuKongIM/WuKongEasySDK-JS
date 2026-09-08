@@ -877,7 +877,20 @@ export class WKIM {
                     const errorMessage = event.message || (event.error ? event.error.message : 'WebSocket error');
                     this.logger.error("WebSocket transport error");
                     this.emit(Event.Error, event.error || new Error(errorMessage));
-                    // The 'onclose' event will be fired next, which will handle cleanup and reconnection logic.
+                    // Native Node WebSocket can emit only error when an HTTP handshake
+                    // loses its TCP connection, leaving readyState CONNECTING forever.
+                    // Settle the attempt through the same generation-fenced close path;
+                    // a later transport close must not notify or schedule a retry twice.
+                    if (!this.isConnected) {
+                        socket.onclose?.({ code: 1006, reason: 'WebSocket transport error' });
+                    }
+                    if (!this.isCurrentConnection(socket, generation) &&
+                        (socket.readyState === WS_CONNECTING || socket.readyState === WS_OPEN)) {
+                        // A retired ws adapter may emit another error while closing a
+                        // pending handshake. Absorb it without touching SDK state.
+                        socket.onerror = () => {};
+                        try { socket.close(); } catch { /* State was already cleaned up. */ }
+                    }
                 };
 
                 socket.onclose = (event) => {
